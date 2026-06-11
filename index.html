@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Test AV - Distance Réelle</title>
+    <title>Test AV - Distance Géométrique</title>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         video {
@@ -49,8 +49,8 @@
 <body>
 
     <div id="startOverlay">
-        <h1>Test Acuité (Distance Réelle)</h1>
-        <p>Utilise l'écart des yeux pour calculer la distance.</p>
+        <h1>Test Acuité (Géométrie)</h1>
+        <p>Calcul de distance par triangulation des yeux.</p>
         <button onclick="startApp()">DÉMARRER</button>
         <p id="errorMsg" class="error"></p>
     </div>
@@ -103,6 +103,7 @@
         let lastTime = 0;
         let speed = 0;
         let distance = 50; // cm
+        let rawDistance = 50;
         let state = 'IDLE'; 
         let lastFlashTime = 0;
         const letters = "C D F H L N O P T U V Z".split(" ");
@@ -117,12 +118,12 @@
             document.getElementById('calibBar').style.transform = `scaleX(${calibrationFactor})`;
         }
         function saveCalib() {
-            localStorage.setItem('avd_blazeface_calib', calibrationFactor);
+            localStorage.setItem('avd_blazeface_calib_v2', calibrationFactor);
             document.getElementById('calibPanel').style.display = 'none';
             updateStats();
         }
         function loadCalib() {
-            const saved = localStorage.getItem('avd_blazeface_calib');
+            const saved = localStorage.getItem('avd_blazeface_calib_v2');
             if (saved) {
                 calibrationFactor = parseFloat(saved);
                 document.getElementById('calibSlider').value = calibrationFactor;
@@ -148,7 +149,6 @@
                     
                     // Estimation DPI de base
                     const dpr = window.devicePixelRatio || 1;
-                    // On affine le DPI de base avec la calibration écran si elle existe
                     let baseDPI = dpr > 2 ? 450 : (dpr > 1 ? 300 : 150);
                     screenDPI = baseDPI * calibrationFactor; 
 
@@ -172,26 +172,36 @@
                 const rightEye = face.landmarks[1];
                 const nose = face.landmarks[2];
 
-                // 1. CALCUL DISTANCE PRÉCIS (Basé sur l'écart inter-pupillaire)
-                // Distance en pixels entre les deux yeux
+                // 1. CALCUL DISTANCE GÉOMÉTRIQUE
+                // On calcule la distance en pixels entre les deux yeux
                 const distInterYeuxPx = Math.sqrt(
                     Math.pow(rightEye[0] - leftEye[0], 2) + 
                     Math.pow(rightEye[1] - leftEye[1], 2)
                 );
 
-                // Formule trigonométrique :
-                // Distance(cm) = (LargeurRéelle(cm) * LargeurImage(px)) / (LargeurObjet(px) * 2 * tan(FOV/2))
-                // Simplification empirique pour webcam standard (FOV ~60°) :
-                // Distance(cm) ≈ (6.3 cm * 640 px) / (distInterYeuxPx * 1.15) 
-                // Le facteur 1.15 ajuste pour la focale moyenne d'un smartphone
+                // FORMULE PHYSIQUE :
+                // Distance = (Taille Réelle Objet * Largeur Image Pixels) / (Taille Objet Pixels * 2 * tan(FOV/2))
+                // Pour un smartphone standard : FOV horizontal ~ 65 à 70 degrés.
+                // tan(70/2) ≈ 0.7
+                // Constante "K" = (6.3 cm * LargeurVideo) / (2 * 0.7)
+                // Si Video = 640px, K ≈ (6.3 * 640) / 1.4 ≈ 2880
+                
+                // NOTE : Cette constante varie selon le téléphone. 
+                // 2800 est une bonne moyenne pour un iPhone/Android récent en mode selfie.
+                // Si la distance semble fausse, on peut ajuster ce facteur.
+                
+                const K_FACTOR = 2800; // Facteur empirique pour webcam/mobile selfie
+
+                if (distInterYeuxPx > 5) { // Éviter division par zéro ou bruit
+                    let calculatedDist = K_FACTOR / distInterYeuxPx;
                     
-                if (distInterYeuxPx > 0) {
-                    // 6.3cm = écart moyen yeux adultes. 
-                    // Le multiplicateur 22 est un coefficient empirique pour webcam/mobile standard
-                    distance = (6.3 * 22) / distInterYeuxPx; 
-                    
-                    // Limiter la distance à des valeurs réalistes (30cm à 150cm)
-                    distance = Math.max(30, Math.min(150, distance));
+                    // Lissage (Moving Average) pour éviter que la lettre change de taille trop vite
+                    // On prend 20% de la nouvelle valeur et 80% de l'ancienne
+                    rawDistance = calculatedDist;
+                    distance = (distance * 0.8) + (rawDistance * 0.2);
+
+                    // Bornes réalistes
+                    distance = Math.max(30, Math.min(120, distance));
                 }
 
                 // 2. CALCUL VITESSE
@@ -228,7 +238,7 @@
                     const randomLetter = letters[Math.floor(Math.random() * letters.length)];
                     letterEl.innerText = randomLetter;
                     
-                    // Calcul taille AVEC la nouvelle distance dynamique
+                    // Calcul taille avec la distance corrigée
                     letterEl.style.fontSize = calculateSize(distance, acuity) + 'px';
                     letterEl.style.opacity = '1';
 
@@ -242,7 +252,8 @@
 
         // --- CALCUL TAILLE OPTIQUE ---
         function calculateSize(distCm, acuityDecimal) {
-            // Taille(cm) = Distance(cm) * 0.0145 / acuité
+            // Formule optométrique : Taille(cm) = Distance(cm) * tan(5 minutes d'arc) / acuité
+            // tan(5/60 degrés) ≈ 0.0145
             let heightCm = (distCm * 0.0145) / acuityDecimal;
 
             // Conversion Pixels : (CM / 2.54) * DPI
