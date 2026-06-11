@@ -3,361 +3,315 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Test AVD - Calibration Intelligente</title>
+    <title>Test AV - BlazeFace + Calibration Persistante</title>
     <style>
-        body { 
-            margin: 0; 
-            background: #111; 
-            overflow: hidden; 
-            font-family: 'Segoe UI', Helvetica, Arial, sans-serif; 
-            color: white; 
-            touch-action: none; 
-            height: 100vh;
-            width: 100vw;
-        }
-        
-        /* Vidéo de fond (suivi de tête) */
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
+
+        /* Vidéo cachée mais active */
         video {
-            position: absolute; 
-            top: 0; left: 0; 
+            position: absolute;
+            top: 0; left: 0;
             width: 100%; height: 100%;
-            object-fit: cover; 
-            opacity: 0.2; /* Légèrement visible pour vérifier que la caméra marche */
-            z-index: 1; 
-            transform: scaleX(-1); /* Effet miroir pour que ce soit naturel */
+            object-fit: cover;
+            opacity: 0.2; 
+            z-index: 1;
+            transform: scaleX(-1); 
         }
 
-        /* Conteneur de la lettre (centré) */
-        #letterContainer {
-            position: absolute; 
+        /* La lettre au centre */
+        #letterDisplay {
+            position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
+            font-size: 100px;
+            font-weight: bold;
+            color: white;
+            opacity: 0;
             z-index: 10;
             pointer-events: none;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            text-shadow: 0 0 10px black;
         }
 
-        #letter {
-            color: white; 
-            font-weight: bold; 
-            opacity: 0; /* Invisible par défaut */
-            font-family: sans-serif; 
-            line-height: 1;
-            /* Pas de transition CSS ici pour garantir un affichage net et instantané */
-        }
-
-        /* UI de Calibration */
-        #uiContainer {
+        /* Interface UI principale */
+        #ui {
             position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
+            top: 10px; left: 10px;
             z-index: 20;
-            background: rgba(0, 0, 0, 0.95);
-            padding: 20px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            border-top: 2px solid #444;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 300px;
+        }
+        .stat { font-size: 12px; margin: 2px 0; color: #0f0; font-family: monospace; }
+        .error { color: #f55; }
+
+        button {
+            background: #4ecdc4; border: none; padding: 10px;
+            border-radius: 5px; cursor: pointer; font-weight: bold;
+            width: 100%; margin-top: 5px;
+        }
+        button.secondary { background: #555; color: white; }
+
+        #startOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 100;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center; padding: 20px;
         }
 
-        #calibArea {
-            display: none; /* Caché par défaut */
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
+        /* Zone de calibration (cachée par défaut) */
+        #calibPanel {
+            display: none;
             margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #444;
+            text-align: center;
         }
-
-        #calibBarWrapper {
-            height: 30px;
+        .calib-bar-container {
+            height: 20px;
+            border: 1px dashed #666;
+            margin: 10px auto;
             display: flex;
             justify-content: center;
-            margin: 15px 0;
-            border: 1px dashed #555; /* Cadre de repère */
-            width: 15mm; /* Un peu plus large que 10mm pour faciliter la visu */
+            align-items: center;
+            width: 12mm; /* Zone de repère */
         }
-
-        #calibBar {
-            width: 10mm; /* Taille CSS standard */
+        .calib-bar {
             height: 100%;
-            background-color: red;
-            transform-origin: center; 
-            box-shadow: 0 0 5px rgba(255,0,0,0.5);
-        }
-
-        .btn {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            width: 100%;
-            max-width: 300px;
-            margin: 5px 0;
-            font-weight: bold;
-        }
-        
-        .btn-save {
-            background: #28a745;
-        }
-
-        .btn-close {
-            background: #6c757d;
-        }
-
-        input[type=range] {
-            width: 100%;
-            max-width: 300px;
-            margin: 10px 0;
-        }
-
-        #debugInfo {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            font-size: 12px;
-            color: lime;
-            z-index: 30;
-            background: rgba(0,0,0,0.7);
-            padding: 5px 10px;
-            border-radius: 4px;
-            pointer-events: none;
-            line-height: 1.4;
+            background: red;
+            width: 10mm; /* Base CSS 10mm */
         }
     </style>
 </head>
 <body>
 
-    <video id="video" playsinline autoplay muted></video>
-    
-    <div id="debugInfo">Initialisation...</div>
-
-    <div id="letterContainer">
-        <div id="letter">E</div>
+    <!-- Écran de démarrage -->
+    <div id="startOverlay">
+        <h1>Test Acuité (BlazeFace)</h1>
+        <p>Calibration écran incluse.</p>
+        <button onclick="startApp()">DÉMARRER</button>
+        <p id="errorMsg" class="error"></p>
     </div>
 
-    <!-- Interface de Calibration -->
-    <div id="uiContainer">
-        <button id="toggleCalibBtn" class="btn">⚙️ Configurer l'écran</button>
-        
-        <div id="calibArea">
-            <p style="font-size: 14px; color: #ddd; margin: 0 0 10px 0; text-align: center;">
-                1. Posez une vraie règle sur l'écran.<br>
-                2. Bougez le curseur pour que la barre rouge fasse <b>exactement 1 cm</b>.<br>
-                <small>Ce réglage sera sauvé pour votre appareil.</small>
-            </p>
-            
-            <div id="calibBarWrapper">
-                <div id="calibBar"></div>
-            </div>
+    <video id="video" playsinline autoplay muted></video>
+    <div id="letterDisplay">A</div>
 
-            <input type="range" id="calibSlider" min="0.5" max="2.5" step="0.01" value="1.0">
-            <div style="font-size: 12px; color: #aaa;">Facteur: <span id="factorVal">1.00</span></div>
-            
-            <button id="saveCalibBtn" class="btn btn-save">✅ Valider et Sauvegarder</button>
-            <button id="closeCalibBtn" class="btn btn-close">Fermer sans changer</button>
+    <div id="ui" style="display:none;">
+        <div class="stat" id="statusInit">Initialisation...</div>
+        <div class="stat" id="statusSpeed">Vitesse: 0</div>
+        <div class="stat" id="statusDist">Distance: -- cm</div>
+        <div class="stat" id="statusSize">Taille: -- px</div>
+        
+        <hr style="border-color:#333; margin: 5px 0;">
+        
+        <!-- Contrôle Acuité -->
+        <div style="font-size:11px; margin-bottom:5px;">
+            Acuité: <span id="valAcuity">1.0</span>
+            <input type="range" id="acuity" min="0.1" max="2.0" step="0.1" value="1.0" oninput="updateParams()" style="width:100%; margin:0;">
+        </div>
+
+        <!-- Bouton Calibration -->
+        <button class="secondary" onclick="toggleCalib()">📏 Calibrer l'écran</button>
+
+        <!-- Panneau de calibration -->
+        <div id="calibPanel">
+            <p style="font-size:11px; margin:0; color:#ddd;">Ajustez pour que la barre rouge fasse <b>1 cm</b> avec une règle.</p>
+            <div class="calib-bar-container">
+                <div class="calib-bar" id="calibBar"></div>
+            </div>
+            <input type="range" id="calibSlider" min="0.5" max="2.0" step="0.05" value="1.0" oninput="updateCalib()" style="width:100%;">
+            <button onclick="saveCalib()" style="background:#28a745; margin-top:5px;">Sauvegarder</button>
         </div>
     </div>
 
-    <!-- Bibliothèques MediaPipe (Suivi de visage) -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <!-- TFJS + BlazeFace (Votre version préférée) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
     <script>
-        // --- CONFIGURATION ---
-        const letters = ['C', 'D', 'E', 'F', 'L', 'O', 'P', 'T', 'Z'];
-        const acuityDecimal = 1.0; // 10/10ème
-        const distanceCm = 40;     // Distance écran-visage estimée
-        const displayDuration = 60; // Durée d'affichage en ms
-        const speedThreshold = 1500; // Vitesse min en px/s (env. 150°/sec selon l'écran)
-        const rebondDelay = 800; // Temps min entre deux lettres (ms)
+        let model = null;
+        let video = document.getElementById('video');
+        let letterEl = document.getElementById('letterDisplay');
+        let ui = document.getElementById('ui');
+        let overlay = document.getElementById('startOverlay');
 
-        // --- VARIABLES SYSTÈME ---
-        let calibrationFactor = 1.0;
-        let lastDisplayTime = 0;
-        let lastHeadPos = { x: 0, y: 0 };
+        // Paramètres
+        let acuity = 1.0; 
+        let screenDPI = 300; 
+        let calibrationFactor = 1.0; // Facteur de correction écran
+
+        // Tracking
+        let lastHeadPos = null;
         let lastTime = 0;
+        let speed = 0;
+        let distance = 50; // cm
+        let state = 'IDLE'; 
+        let lastFlashTime = 0;
+        const letters = "C D F H L N O P T U V Z".split(" ");
 
-        // Éléments DOM
-        const video = document.getElementById('video');
-        const letterEl = document.getElementById('letter');
-        const debugEl = document.getElementById('debugInfo');
-        const calibBar = document.getElementById('calibBar');
-        const calibSlider = document.getElementById('calibSlider');
-        const factorVal = document.getElementById('factorVal');
-        
-        const toggleCalibBtn = document.getElementById('toggleCalibBtn');
-        const calibArea = document.getElementById('calibArea');
-        const saveCalibBtn = document.getElementById('saveCalibBtn');
-        const closeCalibBtn = document.getElementById('closeCalibBtn');
+        // --- 1. LOGIQUE DE CALIBRATION (NOUVEAU) ---
+        function toggleCalib() {
+            const panel = document.getElementById('calibPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
 
-        // --- 1. GESTION CALIBRATION ---
-        function initCalibration() {
-            // Tente de charger la calibration sauvegardée
-            const saved = localStorage.getItem('avd_calib_v1');
+        function updateCalib() {
+            const slider = document.getElementById('calibSlider');
+            calibrationFactor = parseFloat(slider.value);
+            // Applique visuellement à la barre rouge
+            const bar = document.getElementById('calibBar');
+            bar.style.transform = `scaleX(${calibrationFactor})`;
+            bar.style.transformOrigin = 'left'; // Pour que ça grandisse vers la droite ou centre selon CSS
+            // Correction pour centrage :
+            bar.style.transformOrigin = 'center';
+        }
+
+        function saveCalib() {
+            localStorage.setItem('avd_blazeface_calib', calibrationFactor);
+            document.getElementById('calibPanel').style.display = 'none';
+            updateStats(); // Rafraichir l'affichage taille
+        }
+
+        function loadCalib() {
+            const saved = localStorage.getItem('avd_blazeface_calib');
             if (saved) {
                 calibrationFactor = parseFloat(saved);
+                document.getElementById('calibSlider').value = calibrationFactor;
+                updateCalib(); // Mettre à jour la barre visuelle
             }
-            // Mise à jour initiale de l'UI
-            calibSlider.value = calibrationFactor;
-            updateCalibUI();
         }
 
-        function updateCalibUI() {
-            // Applique le facteur à la barre rouge
-            calibBar.style.transform = `scale(${calibrationFactor})`;
-            factorVal.innerText = calibrationFactor.toFixed(2);
-        }
+        // --- 2. DÉMARRAGE ---
+        async function startApp() {
+            loadCalib(); // Charger le réglage écran au démarrage
 
-        // Événements Boutons
-        toggleCalibBtn.addEventListener('click', () => {
-            calibArea.style.display = 'flex';
-        });
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+                });
 
-        closeCalibBtn.addEventListener('click', () => {
-            calibArea.style.display = 'none';
-            // Recharge la valeur sauvegardée si on annule
-            const saved = localStorage.getItem('avd_calib_v1');
-            if(saved) {
-                calibrationFactor = parseFloat(saved);
-                calibSlider.value = calibrationFactor;
-                updateCalibUI();
-            }
-        });
+                video.srcObject = stream;
 
-        calibSlider.addEventListener('input', (e) => {
-            calibrationFactor = parseFloat(e.target.value);
-            updateCalibUI();
-        });
-
-        saveCalibBtn.addEventListener('click', () => {
-            localStorage.setItem('avd_calib_v1', calibrationFactor);
-            calibArea.style.display = 'none';
-            debugEl.innerText = "Calibration sauvegardée !";
-            setTimeout(() => debugEl.innerText = "", 2000);
-        });
-
-        // --- 2. CALCUL TAILLE LETTRE (Optométrie) ---
-        function getLetterPixelSize() {
-            // Création d'un élément temporaire pour mesurer 1mm réel sur CET écran
-            const dummy = document.createElement('div');
-            dummy.style.width = '1mm';
-            dummy.style.height = '1mm';
-            dummy.style.position = 'absolute';
-            dummy.style.visibility = 'hidden';
-            document.body.appendChild(dummy);
-            
-            // Combien de pixels valent 1mm physiquement sur cet écran ?
-            const pxPerMm = dummy.getBoundingClientRect().width;
-            document.body.removeChild(dummy);
-
-            // Formule optométrique : Taille (mm) = Distance (cm) * 0.0291 / Acuité
-            const theoreticalSizeMm = (distanceCm * 0.0291) / acuityDecimal;
-
-            // Application de la calibration utilisateur
-            const finalPx = theoreticalSizeMm * pxPerMm * calibrationFactor;
-            
-            return Math.round(finalPx);
-        }
-
-        function showLetter() {
-            // Choisir une lettre au hasard
-            const char = letters[Math.floor(Math.random() * letters.length)];
-            letterEl.innerText = char;
-            
-            // Ajuster la taille dynamique
-            letterEl.style.fontSize = `${getLetterPixelSize()}px`;
-            
-            // Afficher
-            letterEl.style.opacity = 1;
-            
-            // Masquer après 60ms
-            setTimeout(() => {
-                letterEl.style.opacity = 0;
-            }, displayDuration);
-        }
-
-        // --- 3. LOGIQUE DE SUIVI (MediaPipe) ---
-        function onResults(results) {
-            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                const landmarks = results.multiFaceLandmarks[0];
-                // On suit le bout du nez (landmark 1) pour la stabilité
-                const nose = landmarks[1]; 
-                
-                // Convertir coordonnées normalisées (0-1) en pixels
-                const x = nose.x * window.innerWidth;
-                const y = nose.y * window.innerHeight;
-                
-                const now = performance.now();
-
-                // Calcul de la vitesse seulement si on a un point de référence précédent
-                if (lastTime !== 0) {
-                    const dt = now - lastTime; // delta temps en ms
+                video.onloadedmetadata = async () => {
+                    overlay.style.display = 'none';
+                    ui.style.display = 'block';
+                    video.play();
                     
-                    if (dt > 0) {
-                        const dx = x - lastHeadPos.x;
-                        const dy = y - lastHeadPos.y;
-                        const distPx = Math.sqrt(dx*dx + dy*dy);
-                        
-                        // Vitesse en pixels par seconde
-                        const speedPxSec = (distPx / dt) * 1000;
-                        
-                        // Affichage debug (optionnel, à retirer en prod)
-                        // debugEl.innerText = `V: ${Math.round(speedPxSec)} px/s`;
+                    document.getElementById('statusInit').innerText = "Chargement IA...";
 
-                        // SEUIL DE DÉCLENCHEMENT
-                        if (speedPxSec > speedThreshold) {
-                            // Éviter les déclenchements en rafale (anti-rebond)
-                            if (now - lastDisplayTime > rebondDelay) {
-                                showLetter();
-                                lastDisplayTime = now;
-                                // debugEl.innerText = "LETTRE !";
-                            }
-                        }
-                    }
+                    // Chargement BlazeFace
+                    model = await blazeface.load();
+                    document.getElementById('statusInit').innerText = "Prêt ! Bougez la tête.";
+
+                    // Estimation DPI de base (sera corrigé par calibration)
+                    const dpr = window.devicePixelRatio || 1;
+                    screenDPI = dpr > 2 ? 450 : (dpr > 1 ? 300 : 150);
+
+                    loop();
+                };
+
+            } catch (err) {
+                document.getElementById('errorMsg').innerText = "Erreur Caméra : " + err.message;
+            }
+        }
+
+        // --- 3. BOUCLE PRINCIPALE ---
+        async function loop() {
+            if (!model) return;
+
+            const predictions = await model.estimateFaces(video, false);
+
+            if (predictions.length > 0) {
+                const face = predictions[0];
+                const leftEye = face.landmarks[0];
+                const rightEye = face.landmarks[1];
+                const nose = face.landmarks[2];
+
+                const eyeCenterX = (leftEye[0] + rightEye[0]) / 2;
+                const eyeCenterY = (leftEye[1] + rightEye[1]) / 2;
+
+                // Calcul distance (approximatif via écart yeux/nez)
+                const distPixels = Math.sqrt(Math.pow(nose[0]-eyeCenterX, 2) + Math.pow(nose[1]-eyeCenterY, 2));
+                // Ajustement de la constante pour correspondre à peu près au cm réel
+                distance = Math.max(30, Math.min(100, 3500 / (distPixels + 1))); 
+
+                // Calcul Vitesse
+                const now = performance.now();
+                if (lastHeadPos && (now - lastTime) > 30) {
+                    const deltaX = Math.abs(nose[0] - lastHeadPos.x);
+                    const deltaY = Math.abs(nose[1] - lastHeadPos.y);
+                    const deltaT = (now - lastTime) / 1000; 
+                    
+                    // Vitesse (pixels/sec * facteur arbitraire pour simuler degrés)
+                    speed = (deltaX + deltaY) / deltaT * 0.5; 
                 }
 
-                // Mise à jour pour la prochaine frame
-                lastHeadPos = { x, y };
+                lastHeadPos = { x: nose[0], y: nose[1] };
                 lastTime = now;
+
+                handleState(speed, now);
+                updateStats();
+
+            } else {
+                document.getElementById('statusSpeed').innerText = "Aucun visage";
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        // --- 4. MACHINE D'ÉTAT (Déclenchement) ---
+        function handleState(currentSpeed, now) {
+            const minSpeedTrigger = 150; // Seuil de déclenchement
+            const flashDuration = 60;    // 60ms
+            const cooldownDuration = 1000; 
+
+            if (state === 'IDLE') {
+                if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
+                    state = 'FLASH';
+                    lastFlashTime = now;
+
+                    // Afficher
+                    const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+                    letterEl.innerText = randomLetter;
+                    
+                    // Calcul taille avec la calibration !
+                    letterEl.style.fontSize = calculateSize(distance, acuity) + 'px';
+                    letterEl.style.opacity = '1';
+
+                    // Masquer
+                    setTimeout(() => {
+                        letterEl.style.opacity = '0';
+                        state = 'IDLE'; // Retour direct à IDLE pour simplifier ou COOLDOWN si besoin
+                    }, flashDuration);
+                }
             }
         }
 
-        // Initialisation MediaPipe FaceMesh
-        const faceMesh = new FaceMesh({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-        }});
-        
-        faceMesh.setOptions({
-            maxNumFaces: 1,
-            refineLandmarks: true, // Meilleure précision pour les yeux/nez
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-        
-        faceMesh.onResults(onResults);
+        // --- 5. CALCUL TAILLE AVEC CALIBRATION ---
+        function calculateSize(distCm, acuityDecimal) {
+            // Formule de base : Taille(cm) = Distance(cm) * 0.0145 / acuité
+            let heightCm = (distCm * 0.0145) / acuityDecimal;
 
-        // Initialisation Caméra
-        const camera = new Camera(video, {
-            onFrame: async () => {
-                await faceMesh.send({image: video});
-            },
-            width: 640,
-            height: 480
-        });
-        
-        // Démarrage global
-        initCalibration();
-        camera.start()
-            .then(() => debugEl.innerText = "Système prêt. Bougez la tête vite !")
-            .catch(err => debugEl.innerText = "Erreur Caméra: " + err);
+            // Conversion Pixels : (CM / 2.54) * DPI
+            let heightPx = (heightCm / 2.54) * screenDPI;
 
+            // APPLICATION DU FACTEUR DE CALIBRATION
+            heightPx = heightPx * calibrationFactor;
+
+            return Math.max(20, Math.round(heightPx));
+        }
+
+        function updateParams() {
+            acuity = parseFloat(document.getElementById('acuity').value);
+            document.getElementById('valAcuity').innerText = acuity.toFixed(1);
+        }
+
+        function updateStats() {
+            document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
+            document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
+            document.getElementById('statusSize').innerText = `Taille: ${calculateSize(distance, acuity)} px`;
+        }
     </script>
 </body>
 </html>
