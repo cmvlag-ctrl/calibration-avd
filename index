@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Test AV - Calibration Correcte</title>
+    <style>
+        body { margin: 0; background: #111; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: white; }
+        
+        /* Vidéo en arrière-plan */
+        video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            opacity: 0.15;
+            z-index: 1;
+            transform: scaleX(-1); /* Miroir */
+        }
+
+        /* Conteneur de la lettre */
+        #letterContainer {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #letter {
+            color: white;
+            font-weight: bold;
+            opacity: 0;
+            /* transition: opacity 0.05s; */ /* Pas de transition pour un affichage net */
+            font-family: sans-serif;
+            line-height: 1;
+        }
+
+        /* Grille de calibration (1cm théorique) */
+        #calibrationBar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 20px;
+            background: rgba(255, 0, 0, 0.5);
+            border: 1px solid white;
+            display: none; /* Caché par défaut */
+            z-index: 20;
+        }
+        #calibrationText {
+            position: absolute;
+            top: 45px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: #ff5555;
+            display: none;
+            z-index: 20;
+        }
+
+        /* Interface de contrôle */
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 12px;
+            z-index: 20;
+            text-align: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        input[type=range] {
+            width: 100%;
+            accent-color: #4CAF50;
+        }
+
+        .data-display {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        /* Bouton Démarrer */
+        #startBtn {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 40px;
+            font-size: 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 30;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        #log {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 10px;
+            color: lime;
+            z-index: 5;
+            pointer-events: none;
+        }
+    </style>
+    <!-- Chargement de TensorFlow.js et BlazeFace -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@latest/dist/blazeface.min.js"></script>
+</head>
+<body>
+
+    <video id="video" playsinline autoplay muted></video>
+    <div id="log">En attente...</div>
+
+    <!-- Barre de calibration (1cm théorique) -->
+    <div id="calibrationBar"></div>
+    <div id="calibrationText">Cette barre devrait faire 1 cm de large</div>
+
+    <div id="letterContainer">
+        <div id="letter">E</div>
+    </div>
+
+    <button id="startBtn">ACTIVER LA CAMÉRA</button>
+
+    <div id="controls" style="display:none;">
+        <div class="control-group">
+            <label>Acuité Visuelle (Decimal): <strong id="valAcuity">1.0</strong></label>
+            <input type="range" id="acuity" min="0.1" max="2.0" value="1.0" step="0.1">
+            <div class="data-display" id="sizeInfo">Taille lettre: -- mm</div>
+        </div>
+
+        <div class="control-group">
+            <label>Distance Estimée: <strong id="valDist">--</strong> cm</label>
+        </div>
+
+        <div class="control-group">
+            <label style="color:#ff5555">
+                <input type="checkbox" id="calibCheck"> Mode Calibration (Barre 1cm)
+            </label>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const letterEl = document.getElementById('letter');
+        const startBtn = document.getElementById('startBtn');
+        const controls = document.getElementById('controls');
+        const logEl = document.getElementById('log');
+        const calibBar = document.getElementById('calibrationBar');
+        const calibText = document.getElementById('calibrationText');
+        const calibCheck = document.getElementById('calibCheck');
+
+        let model = null;
+        let isRunning = false;
+        
+        // Paramètres
+        let acuity = 1.0;
+        let displayDuration = 60; // ms
+        let lastDisplayTime = 0;
+        let lastHeadPos = { x: 0, y: 0 };
+        let lastTime = 0;
+        let distanceCm = 50; // Valeur par défaut initiale
+        
+        // Calibration Écran
+        // On utilise devicePixelRatio pour une précision maximale sur mobile
+        const dpr = window.devicePixelRatio || 1;
+        // On suppose un DPI de base de 96, multiplié par le ratio device
+        const screenDPI = 96 * dpr; 
+
+        // Lettres optotypes
+        const letters = ['C', 'D', 'E', 'F', 'L', 'O', 'P', 'T', 'Z'];
+
+        // Écouteurs
+        document.getElementById('acuity').addEventListener('input', (e) => {
+            acuity = parseFloat(e.target.value);
+            document.getElementById('valAcuity').innerText = acuity.toFixed(1);
+            updateSizeInfo();
+        });
+
+        calibCheck.addEventListener('change', (e) => {
+            if(e.target.checked) {
+                calibBar.style.display = 'block';
+                calibText.style.display = 'block';
+                updateCalibrationBar();
+            } else {
+                calibBar.style.display = 'none';
+                calibText.style.display = 'none';
+            }
+        });
+
+        // Démarrage
+        startBtn.addEventListener('click', async () => {
+            startBtn.style.display = 'none';
+            logEl.innerText = "Chargement du modèle IA...";
+            
+            try {
+                // Chargement BlazeFace
+                model = await blazeface.load();
+                logEl.innerText = "Modèle chargé. Activation caméra...";
+                
+                // Activation Caméra
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'user', 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                });
+                
+                video.srcObject = stream;
+                
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        resolve();
+                    };
+                });
+                
+                video.play();
+                controls.style.display = 'block';
+                isRunning = true;
+                logEl.innerText = "Système actif. Bougez la tête !";
+                
+                requestAnimationFrame(processFrame);
+                
+            } catch (err) {
+                console.error(err);
+                logEl.innerText = "Erreur: " + err.message;
+                alert("Impossible d'accéder à la caméra. Vérifiez les permissions.");
+                startBtn.style.display = 'block';
+            }
+        });
+
+        function updateCalibrationBar() {
+            // Une barre de 1 cm
+            // Taille px = (1cm / 2.54) * DPI
+            const widthPx = (1 / 2.54) * screenDPI;
+            calibBar.style.width = widthPx + 'px';
+        }
+
+        function updateSizeInfo() {
+            // Calcul de la taille théorique pour l'affichage info
+            // On utilise une distance par défaut de 50cm si pas encore détectée
+            const dist = distanceCm > 0 ? distanceCm : 50;
+            const heightCm = (dist * 0.0145) / acuity;
+            const heightMm = heightCm * 10;
+            document.getElementById('sizeInfo').innerText = `Taille théorique: ${heightMm.toFixed(1)} mm (à ${dist.toFixed(0)}cm)`;
+        }
+
+        // Calcul de la taille de la lettre en pixels
+        function calculatePixelSize(distCm, acuityVal) {
+            // Formule: Taille(cm) = Distance(cm) * tan(5/60 deg) / acuité
+            // tan(5/60 deg) ≈ 0.01454
+            
+            const heightCm = (distCm * 0.01454) / acuityVal;
+            
+            // Conversion en pixels : (CM / 2.54) * DPI_ECRAN
+            // screenDPI prend déjà en compte le devicePixelRatio
+            const heightPx = (heightCm / 2.54) * screenDPI;
+            
+            return heightPx;
+        }
+
+        async function processFrame() {
+            if (!isRunning) return;
+
+            // Détection du visage
+            const returnTensors = false;
+            const predictions = await model.estimateFaces(video, returnTensors);
+
+            if (predictions.length > 0) {
+                const face = predictions[0];
+                
+                // 1. Calcul de la distance
+                // On utilise la largeur du visage (boundingBox)
+                // Largeur moyenne visage adulte ~14-15 cm. 
+                // Distance (mm) = Largeur Reelle (mm) * Distance Focale / Largeur Image (px)
+                // Simplification avec BlazeFace landmarks :
+                
+                const eyeLeft = face.landmarks[0]; // Oeil gauche
+                const eyeRight = face.landmarks[1]; // Oeil droit
+                
+                // Distance entre les yeux en pixels
+                const eyeDistPx = Math.sqrt(Math.pow(eyeRight[0] - eyeLeft[0], 2) + Math.pow(eyeRight[1] - eyeLeft[1], 2));
+                
+                // Distance moyenne entre les yeux : 6.3 cm
+                // Formule approximative de distance basée sur la focale du téléphone (souvent ~800-1000px en équivalent 35mm, mais varies)
+                // BlazeFace renvoie des coordonnées normalisées ou pixels selon l'input. Ici c'est pixels de l'image vidéo.
+                
+                // Estimons la distance via la largeur du bounding box qui est plus stable
+                const boxWidth = face.boundingBox.width;
+                // Si le visage fait 15cm de large et remplit tout l'écran (ex: 640px), on est très proche.
+                // Distance ≈ (Taille Reelle * Largeur Image Px) / Taille Objet Px
+                // Mais cela dépend du FOV de la caméra. 
+                // Approche robuste : On assume un FOV moyen de smartphone (~60° horizontal).
+                // Distance = (LargeurVis_cm / 2) / tan(FOV/2 * (BoxWidth/VideoWidth))
+                
+                const videoWidth = video.videoWidth;
+                const fovRad = 60 * (Math.PI / 180); // 60 degrés
+                const angleSubtended = fovRad * (boxWidth / videoWidth);
+                
+                // Distance = LargeurReelle / (2 * tan(angle/2))
+                // Largeur visage estimée à 14 cm
+                const faceWidthCm = 14.0;
+                let dist = faceWidthCm / (2 * Math.tan(angleSubtended / 2));
+                
+                // Lissage de la distance
+                distanceCm = (distanceCm * 0.8) + (dist * 0.2);
+                document.getElementById('valDist').innerText = distanceCm.toFixed(0);
+                updateSizeInfo();
+
+                // 2. Détection de mouvement (Vitesse)
+                const now = performance.now();
+                const currentPos = { x: eyeLeft[0], y: eyeLeft[1] }; // On suit l'oeil gauche
+                
+                if (lastTime > 0) {
+                    const dt = now - lastTime; // ms
+                    const dx = currentPos.x - lastHeadPos.x;
+                    const dy = currentPos.y - lastHeadPos.y;
+                    const distMoved = Math.sqrt(dx*dx + dy*dy); // pixels
+                    
+                    // Vitesse en pixels/seconde
+                    const speed = distMoved / (dt / 1000);
+                    
+                    // Seuil de déclenchement
+                    // 150°/sec est énorme. En pixels, ça dépend de la distance.
+                    // Disons qu'on veut un mouvement "rapide". 
+                    // Si on est à 50cm, 1 degré ≈ 10-15 pixels (selon résolution).
+                    // 150 deg/sec ≈ 1500-2000 pixels/sec.
+                    
+                    const thresholdSpeed = 1500; // Pixels par seconde (à ajuster selon ressenti)
+                    
+                    if (speed > thresholdSpeed && (now - lastDisplayTime) > 500) {
+                        showLetter();
+                        lastDisplayTime = now;
+                    }
+                }
+                
+                lastHeadPos = currentPos;
+                lastTime = now;
+            }
+
+            requestAnimationFrame(processFrame);
+        }
+
+        function showLetter() {
+            // Choisir une lettre aléatoire
+            const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+            letterEl.innerText = randomLetter;
+            
+            // Calculer la taille
+            const sizePx = calculatePixelSize(distanceCm, acuity);
+            letterEl.style.fontSize = sizePx + 'px';
+            
+            // Afficher
+            letterEl.style.opacity = 1;
+            
+            // Cacher après 60ms
+            setTimeout(() => {
+                letterEl.style.opacity = 0;
+            }, displayDuration);
+        }
+    </script>
+</body>
+</html>
