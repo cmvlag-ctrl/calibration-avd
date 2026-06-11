@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Test AV - Calibration Corrigée</title>
+    <title>Test AVD - Calibration Intelligente</title>
     <style>
         body { 
             margin: 0; 
@@ -16,52 +16,54 @@
             width: 100vw;
         }
         
-        /* Vidéo en arrière-plan */
+        /* Vidéo de fond (suivi de tête) */
         video {
             position: absolute; 
             top: 0; left: 0; 
             width: 100%; height: 100%;
             object-fit: cover; 
-            opacity: 0.2; 
+            opacity: 0.2; /* Légèrement visible pour vérifier que la caméra marche */
             z-index: 1; 
-            transform: scaleX(-1); 
+            transform: scaleX(-1); /* Effet miroir pour que ce soit naturel */
         }
 
-        /* Conteneur de la lettre (CORRECTION ICI : ajout du point-virgule) */
+        /* Conteneur de la lettre (centré) */
         #letterContainer {
             position: absolute; 
             top: 50%; left: 50%;
-            transform: translate(-50%, -50%); /* CORRIGÉ */
+            transform: translate(-50%, -50%);
             z-index: 10;
             pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         #letter {
             color: white; 
             font-weight: bold; 
-            opacity: 0;
+            opacity: 0; /* Invisible par défaut */
             font-family: sans-serif; 
             line-height: 1;
-            transition: opacity 0.05s;
+            /* Pas de transition CSS ici pour garantir un affichage net et instantané */
         }
 
-        /* Interface de Calibration */
+        /* UI de Calibration */
         #uiContainer {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
             z-index: 20;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             padding: 20px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             align-items: center;
-            border-top: 1px solid #333;
+            border-top: 2px solid #444;
         }
 
-        /* La zone de la barre de calibration */
         #calibArea {
             display: none; /* Caché par défaut */
             flex-direction: column;
@@ -71,21 +73,20 @@
         }
 
         #calibBarWrapper {
-            /* Conteneur neutre */
-            height: 20px;
+            height: 30px;
             display: flex;
             justify-content: center;
-            margin-bottom: 10px;
+            margin: 15px 0;
+            border: 1px dashed #555; /* Cadre de repère */
+            width: 15mm; /* Un peu plus large que 10mm pour faciliter la visu */
         }
 
         #calibBar {
-            /* LARGEUR DE BASE : 10mm CSS */
-            width: 10mm; 
+            width: 10mm; /* Taille CSS standard */
             height: 100%;
             background-color: red;
-            /* Le scale sera appliqué par JS */
             transform-origin: center; 
-            border: 1px solid white;
+            box-shadow: 0 0 5px rgba(255,0,0,0.5);
         }
 
         .btn {
@@ -98,12 +99,16 @@
             cursor: pointer;
             width: 100%;
             max-width: 300px;
-            margin-bottom: 10px;
+            margin: 5px 0;
+            font-weight: bold;
         }
         
         .btn-save {
             background: #28a745;
-            margin-top: 10px;
+        }
+
+        .btn-close {
+            background: #6c757d;
         }
 
         input[type=range] {
@@ -119,10 +124,11 @@
             font-size: 12px;
             color: lime;
             z-index: 30;
-            background: rgba(0,0,0,0.5);
-            padding: 5px;
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
             border-radius: 4px;
             pointer-events: none;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -130,49 +136,53 @@
 
     <video id="video" playsinline autoplay muted></video>
     
-    <div id="debugInfo">Chargement...</div>
+    <div id="debugInfo">Initialisation...</div>
 
     <div id="letterContainer">
         <div id="letter">E</div>
     </div>
 
-    <!-- UI Calibration -->
+    <!-- Interface de Calibration -->
     <div id="uiContainer">
-        <button id="toggleCalibBtn" class="btn">📏 Calibrer l'écran (Règle 1cm)</button>
+        <button id="toggleCalibBtn" class="btn">⚙️ Configurer l'écran</button>
         
         <div id="calibArea">
-            <p style="font-size: 14px; color: #ccc; margin: 0 0 10px 0;">
-                Posez une règle physique sur l'écran.<br>
-                Ajustez le curseur pour que la barre rouge fasse <b>exactement 1 cm</b>.
+            <p style="font-size: 14px; color: #ddd; margin: 0 0 10px 0; text-align: center;">
+                1. Posez une vraie règle sur l'écran.<br>
+                2. Bougez le curseur pour que la barre rouge fasse <b>exactement 1 cm</b>.<br>
+                <small>Ce réglage sera sauvé pour votre appareil.</small>
             </p>
             
             <div id="calibBarWrapper">
                 <div id="calibBar"></div>
             </div>
 
-            <input type="range" id="calibSlider" min="0.5" max="2.0" step="0.01" value="1.0">
+            <input type="range" id="calibSlider" min="0.5" max="2.5" step="0.01" value="1.0">
+            <div style="font-size: 12px; color: #aaa;">Facteur: <span id="factorVal">1.00</span></div>
             
-            <button id="saveCalibBtn" class="btn btn-save">Valider ce réglage</button>
+            <button id="saveCalibBtn" class="btn btn-save">✅ Valider et Sauvegarder</button>
+            <button id="closeCalibBtn" class="btn btn-close">Fermer sans changer</button>
         </div>
     </div>
 
-    <!-- Scripts MediaPipe -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <!-- Bibliothèques MediaPipe (Suivi de visage) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
     <script>
         // --- CONFIGURATION ---
         const letters = ['C', 'D', 'E', 'F', 'L', 'O', 'P', 'T', 'Z'];
-        const acuityDecimal = 1.0; 
-        const distanceCm = 40;     
-        const displayDuration = 60; 
-        
-        // --- VARIABLES ---
+        const acuityDecimal = 1.0; // 10/10ème
+        const distanceCm = 40;     // Distance écran-visage estimée
+        const displayDuration = 60; // Durée d'affichage en ms
+        const speedThreshold = 1500; // Vitesse min en px/s (env. 150°/sec selon l'écran)
+        const rebondDelay = 800; // Temps min entre deux lettres (ms)
+
+        // --- VARIABLES SYSTÈME ---
         let calibrationFactor = 1.0;
         let lastDisplayTime = 0;
         let lastHeadPos = { x: 0, y: 0 };
         let lastTime = 0;
-        const speedThreshold = 1500; 
 
         // Éléments DOM
         const video = document.getElementById('video');
@@ -180,132 +190,160 @@
         const debugEl = document.getElementById('debugInfo');
         const calibBar = document.getElementById('calibBar');
         const calibSlider = document.getElementById('calibSlider');
+        const factorVal = document.getElementById('factorVal');
+        
         const toggleCalibBtn = document.getElementById('toggleCalibBtn');
         const calibArea = document.getElementById('calibArea');
         const saveCalibBtn = document.getElementById('saveCalibBtn');
+        const closeCalibBtn = document.getElementById('closeCalibBtn');
 
-        // --- 1. INITIALISATION CALIBRATION ---
+        // --- 1. GESTION CALIBRATION ---
         function initCalibration() {
-            // Charger la valeur sauvegardée ou défaut 1.0
-            const saved = localStorage.getItem('avd_calib_factor');
+            // Tente de charger la calibration sauvegardée
+            const saved = localStorage.getItem('avd_calib_v1');
             if (saved) {
                 calibrationFactor = parseFloat(saved);
-                calibSlider.value = calibrationFactor;
             }
-            updateCalibVisual();
+            // Mise à jour initiale de l'UI
+            calibSlider.value = calibrationFactor;
+            updateCalibUI();
         }
 
-        function updateCalibVisual() {
-            // Applique le facteur d'échelle à la barre rouge
-            // Si factor = 1.4, la barre de 10mm CSS grossit de 40%
+        function updateCalibUI() {
+            // Applique le facteur à la barre rouge
             calibBar.style.transform = `scale(${calibrationFactor})`;
+            factorVal.innerText = calibrationFactor.toFixed(2);
         }
 
-        // --- 2. GESTION UI ---
+        // Événements Boutons
         toggleCalibBtn.addEventListener('click', () => {
-            const isVisible = calibArea.style.display === 'flex';
-            if (isVisible) {
-                calibArea.style.display = 'none';
-                toggleCalibBtn.innerText = "📏 Calibrer l'écran (Règle 1cm)";
-            } else {
-                calibArea.style.display = 'flex';
-                toggleCalibBtn.innerText = "Masquer Calibration";
+            calibArea.style.display = 'flex';
+        });
+
+        closeCalibBtn.addEventListener('click', () => {
+            calibArea.style.display = 'none';
+            // Recharge la valeur sauvegardée si on annule
+            const saved = localStorage.getItem('avd_calib_v1');
+            if(saved) {
+                calibrationFactor = parseFloat(saved);
+                calibSlider.value = calibrationFactor;
+                updateCalibUI();
             }
         });
 
         calibSlider.addEventListener('input', (e) => {
             calibrationFactor = parseFloat(e.target.value);
-            updateCalibVisual();
+            updateCalibUI();
         });
 
         saveCalibBtn.addEventListener('click', () => {
-            localStorage.setItem('avd_calib_factor', calibrationFactor);
-            alert(`Réglage sauvegardé (Facteur: ${calibrationFactor})`);
+            localStorage.setItem('avd_calib_v1', calibrationFactor);
             calibArea.style.display = 'none';
-            toggleCalibBtn.innerText = "📏 Calibrer l'écran (Règle 1cm)";
+            debugEl.innerText = "Calibration sauvegardée !";
+            setTimeout(() => debugEl.innerText = "", 2000);
         });
 
-        // --- 3. CALCUL TAILLE LETTRE ---
+        // --- 2. CALCUL TAILLE LETTRE (Optométrie) ---
         function getLetterPixelSize() {
-            // Formule simplifiée pour 10/10ème à 40cm ~ 1.16mm
-            // Taille(mm) = Distance(cm) * 0.0291 / Acuité
-            const sizeMm = (distanceCm * 0.0291) / acuityDecimal;
-            
-            // Astuce fiable pour convertir mm -> pixels sur n'importe quel écran
+            // Création d'un élément temporaire pour mesurer 1mm réel sur CET écran
             const dummy = document.createElement('div');
             dummy.style.width = '1mm';
-            dummy.style.height = '1mm'; // Hauteur aussi pour stabilité
+            dummy.style.height = '1mm';
             dummy.style.position = 'absolute';
             dummy.style.visibility = 'hidden';
             document.body.appendChild(dummy);
+            
+            // Combien de pixels valent 1mm physiquement sur cet écran ?
             const pxPerMm = dummy.getBoundingClientRect().width;
             document.body.removeChild(dummy);
+
+            // Formule optométrique : Taille (mm) = Distance (cm) * 0.0291 / Acuité
+            const theoreticalSizeMm = (distanceCm * 0.0291) / acuityDecimal;
+
+            // Application de la calibration utilisateur
+            const finalPx = theoreticalSizeMm * pxPerMm * calibrationFactor;
             
-            // Calcul final : Taille théorique * Pixels/mm * Correction Utilisateur
-            const finalPx = sizeMm * pxPerMm * calibrationFactor;
-            return finalPx;
+            return Math.round(finalPx);
         }
 
         function showLetter() {
+            // Choisir une lettre au hasard
             const char = letters[Math.floor(Math.random() * letters.length)];
             letterEl.innerText = char;
+            
+            // Ajuster la taille dynamique
             letterEl.style.fontSize = `${getLetterPixelSize()}px`;
+            
+            // Afficher
             letterEl.style.opacity = 1;
             
+            // Masquer après 60ms
             setTimeout(() => {
                 letterEl.style.opacity = 0;
             }, displayDuration);
         }
 
-        // --- 4. SUIVI TÊTE (MediaPipe) ---
+        // --- 3. LOGIQUE DE SUIVI (MediaPipe) ---
         function onResults(results) {
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                 const landmarks = results.multiFaceLandmarks[0];
-                const nose = landmarks[1]; // Bout du nez
+                // On suit le bout du nez (landmark 1) pour la stabilité
+                const nose = landmarks[1]; 
                 
+                // Convertir coordonnées normalisées (0-1) en pixels
                 const x = nose.x * window.innerWidth;
                 const y = nose.y * window.innerHeight;
+                
                 const now = performance.now();
 
-                // Calcul vitesse
+                // Calcul de la vitesse seulement si on a un point de référence précédent
                 if (lastTime !== 0) {
-                    const dt = now - lastTime;
+                    const dt = now - lastTime; // delta temps en ms
+                    
                     if (dt > 0) {
                         const dx = x - lastHeadPos.x;
                         const dy = y - lastHeadPos.y;
-                        const dist = Math.sqrt(dx*dx + dy*dy);
-                        const speed = (dist / dt) * 1000; // px/sec
+                        const distPx = Math.sqrt(dx*dx + dy*dy);
+                        
+                        // Vitesse en pixels par seconde
+                        const speedPxSec = (distPx / dt) * 1000;
+                        
+                        // Affichage debug (optionnel, à retirer en prod)
+                        // debugEl.innerText = `V: ${Math.round(speedPxSec)} px/s`;
 
-                        debugEl.innerText = `Vitesse: ${Math.round(speed)} px/s`;
-
-                        if (speed > speedThreshold) {
-                            if (now - lastDisplayTime > 800) { // Délai anti-rebond
+                        // SEUIL DE DÉCLENCHEMENT
+                        if (speedPxSec > speedThreshold) {
+                            // Éviter les déclenchements en rafale (anti-rebond)
+                            if (now - lastDisplayTime > rebondDelay) {
                                 showLetter();
                                 lastDisplayTime = now;
+                                // debugEl.innerText = "LETTRE !";
                             }
                         }
                     }
                 }
+
+                // Mise à jour pour la prochaine frame
                 lastHeadPos = { x, y };
                 lastTime = now;
-            } else {
-                debugEl.innerText = "Visage non détecté";
             }
         }
 
+        // Initialisation MediaPipe FaceMesh
         const faceMesh = new FaceMesh({locateFile: (file) => {
             return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
         }});
         
         faceMesh.setOptions({
             maxNumFaces: 1,
-            refineLandmarks: true,
+            refineLandmarks: true, // Meilleure précision pour les yeux/nez
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
         
         faceMesh.onResults(onResults);
 
+        // Initialisation Caméra
         const camera = new Camera(video, {
             onFrame: async () => {
                 await faceMesh.send({image: video});
@@ -314,11 +352,11 @@
             height: 480
         });
         
-        // Démarrage
+        // Démarrage global
         initCalibration();
         camera.start()
-            .then(() => debugEl.innerText = "Caméra active")
-            .catch(err => debugEl.innerText = "Erreur caméra: " + err);
+            .then(() => debugEl.innerText = "Système prêt. Bougez la tête vite !")
+            .catch(err => debugEl.innerText = "Erreur Caméra: " + err);
 
     </script>
 </body>
