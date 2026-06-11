@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Test AV - Précision Optométrique</title>
+    <title>Test AV - Version Stable</title>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; user-select: none; -webkit-user-select: none; touch-action: none; }
         video {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; opacity: 0.2; z-index: 1; transform: scaleX(-1);
+            object-fit: cover; opacity: 0.3; z-index: 1; transform: scaleX(-1);
         }
         #letterDisplay {
             position: absolute; top: 50%; left: 50%;
@@ -17,27 +17,29 @@
             font-weight: bold; color: white;
             opacity: 0; z-index: 10; pointer-events: none;
             will-change: opacity, font-size;
+            text-shadow: 0 0 5px black;
         }
 
-        /* UI */
-        #toggleSettings {
-            position: absolute; top: 15px; left: 15px; z-index: 100;
-            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+        /* UI Elements */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; pointer-events: none; }
+        .interactive { pointer-events: auto; }
+
+        #settingsBtn {
+            position: absolute; top: 15px; left: 15px;
+            background: rgba(255,255,255,0.2); border: 1px solid white;
             color: white; width: 40px; height: 40px; border-radius: 50%;
             font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(4px);
         }
+
         #settingsPanel {
-            position: absolute; top: 65px; left: 15px; z-index: 99;
-            background: rgba(0,0,0,0.95); padding: 20px; border-radius: 12px;
+            position: absolute; top: 65px; left: 15px;
+            background: rgba(0,0,0,0.9); padding: 20px; border-radius: 10px;
             width: 280px; border: 1px solid #444;
-            transform: translateX(-150%); transition: transform 0.3s ease-out;
+            display: none;
         }
-        #settingsPanel.open { transform: translateX(0); }
         
         .control-group { margin-bottom: 15px; }
         .label-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; color: #ccc; }
-        .val-blue { color: #00d2ff; font-weight: bold; }
         input[type=range] { width: 100%; accent-color: #00d2ff; }
         
         button.btn {
@@ -45,22 +47,23 @@
             border-radius: 6px; width: 100%; cursor: pointer; margin-top: 5px; font-size: 13px;
         }
         button.btn-primary { background: #00d2ff; color: #000; border: none; font-weight: bold; }
+        button.btn-test { background: #ff4444; color: white; border: none; font-weight: bold; }
 
         #calibContainer { 
             display: none; margin-top: 10px; padding: 10px; background: #111; border-radius: 8px; border: 1px dashed #444; 
         }
-        .calib-visual {
-            height: 50px; background: #222; margin: 10px 0; position: relative;
-            display: flex; align-items: center; justify-content: center; border: 1px solid #333;
-        }
-        .calib-bar { height: 100%; background: #ff4444; width: 50px; transition: width 0.1s; }
+        .calib-bar { height: 20px; background: #ff4444; width: 50px; margin: 10px auto; border: 1px solid white; }
 
         #statsBar {
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 20px; font-size: 14px; color: #888; z-index: 50;
-            background: rgba(0,0,0,0.7); padding: 8px 20px; border-radius: 20px; border: 1px solid #333;
+            display: flex; gap: 15px; font-size: 12px; color: #aaa; 
+            background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 20px;
         }
-        .stat-real-size { color: #00d2ff; }
+        .stat-val { color: #00d2ff; font-weight: bold; }
+
+        #testBtnContainer {
+            position: absolute; bottom: 20px; right: 20px;
+        }
 
         #startOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -75,57 +78,56 @@
 
     <div id="startOverlay">
         <h2 style="color:white; margin-bottom:20px;">TEST ACUITÉ VISUELLE</h2>
-        <p style="color:#aaa; margin-bottom:30px; max-width:300px; text-align:center;">
-            Pour une taille précise, utilisez le bouton <b>Calibrer</b> avec une règle.
+        <p style="color:#aaa; margin-bottom:30px; text-align:center; max-width: 300px;">
+            1. Calibrez avec une règle.<br>
+            2. Utilisez le bouton TEST pour vérifier la taille.
         </p>
-        <button class="btn btn-primary" style="width:auto; padding:15px 40px; font-size:18px;" onclick="startApp()">LANCER</button>
+        <button class="btn btn-primary" style="width:auto; padding:15px 40px; font-size:18px;" onclick="startApp()">COMMENCER</button>
     </div>
 
     <video id="video" playsinline autoplay muted></video>
     <div id="letterDisplay">E</div>
 
-    <div id="toggleSettings" onclick="toggleSettings()">⚙️</div>
+    <div id="ui-layer">
+        <div id="settingsBtn" class="interactive" onclick="toggleSettings()">⚙️</div>
 
-    <div id="settingsPanel">
-        <div style="font-weight:bold; color:#00d2ff; margin-bottom:15px;">PARAMÈTRES</div>
+        <div id="settingsPanel" class="interactive">
+            <div style="font-weight:bold; color:#00d2ff; margin-bottom:15px;">RÉGLAGES</div>
 
-        <div class="control-group">
-            <div class="label-row"><span>Acuité (1/10)</span> <span id="acuityVal" class="val-blue">1.0</span></div>
-            <input type="range" id="acuityRange" min="0.1" max="2.0" step="0.1" value="1.0" oninput="updateAcuity()">
-        </div>
-
-        <button class="btn" onclick="toggleCalib()">📏 Calibrer l'écran (Règle)</button>
-        
-        <div id="calibContainer">
-            <p style="font-size:11px; color:#aaa; margin:0 0 10px 0; text-align:center;">
-                Ajustez la barre pour qu'elle mesure <b>EXACTEMENT 1 CM</b> avec une vraie règle.
-            </p>
-            <div class="calib-visual">
-                <div class="calib-bar" id="calibBar" style="width: 50px;"></div>
+            <div class="control-group">
+                <div class="label-row"><span>Acuité (1/10)</span> <span id="acuityVal" class="stat-val">1.0</span></div>
+                <input type="range" id="acuityRange" min="0.1" max="2.0" step="0.1" value="1.0" oninput="updateAcuity()">
             </div>
-            <input type="range" id="calibRange" min="20" max="150" step="1" value="50" oninput="updateCalibPreview()">
-            <button class="btn btn-primary" onclick="saveCalib()">VALIDER</button>
-        </div>
-    </div>
 
-    <div id="statsBar">
-        <div>Vitesse: <b id="dispSpeed">0</b> °/s</div>
-        <div>Distance: <b id="dispDist">50</b> cm</div>
-        <div class="stat-real-size">Taille: <b id="dispSizeMm">--</b> mm</div>
+            <button class="btn" onclick="toggleCalib()">📏 Calibrer (Règle 1cm)</button>
+            
+            <div id="calibContainer">
+                <p style="font-size:11px; color:#aaa; text-align:center; margin:0 0 5px 0;">
+                    Ajustez la barre rouge à <b>1 CM</b> avec une règle.
+                </p>
+                <div class="calib-bar" id="calibBar"></div>
+                <input type="range" id="calibRange" min="20" max="150" step="1" value="50" oninput="updateCalibPreview()">
+                <button class="btn btn-primary" onclick="saveCalib()">VALIDER</button>
+            </div>
+        </div>
+
+        <div id="statsBar">
+            <div>Dist: <span id="dispDist" class="stat-val">--</span> cm</div>
+            <div>Taille: <span id="dispSizeMm" class="stat-val">--</span> mm</div>
+        </div>
+
+        <div id="testBtnContainer" class="interactive">
+            <button class="btn btn-test" style="padding: 10px 20px; border-radius: 20px;" onclick="manualTest()">TEST LETTER</button>
+        </div>
     </div>
 
     <script>
         let model, video, letterEl;
         let acuity = 1.0;
         let distance = 50;
-        let pixelsPerCm = 56; // Valeur par défaut (estimation moyenne)
-        let state = 'IDLE';
-        let lastFlash = 0;
-        let lastPos = null;
-        let lastTime = 0;
+        let pixelsPerCm = 56; // Défaut
         let letters = ["H", "X", "O", "V", "U", "Z", "C", "E", "N", "R"];
 
-        // 1. INITIALISATION
         function startApp() {
             loadCalib();
             document.getElementById('startOverlay').style.display = 'none';
@@ -146,10 +148,10 @@
                 model = loadedModel;
                 requestAnimationFrame(processFrame);
             })
-            .catch(err => alert("Erreur: " + err));
+            .catch(err => alert("Erreur caméra: " + err));
         }
 
-        // 2. LOGIQUE CALIBRAGE
+        // --- CALIBRAGE ---
         function toggleCalib() {
             const c = document.getElementById('calibContainer');
             c.style.display = (c.style.display === 'block') ? 'none' : 'block';
@@ -157,12 +159,12 @@
         function updateCalibPreview() {
             pixelsPerCm = parseInt(document.getElementById('calibRange').value);
             document.getElementById('calibBar').style.width = pixelsPerCm + 'px';
+            updateStats(); // Met à jour la taille estimée en temps réel
         }
         function saveCalib() {
             localStorage.setItem('avd_ppc', pixelsPerCm);
             toggleCalib();
-            toggleSettings(); // Ferme le menu
-            alert("Calibrage enregistré !");
+            toggleSettings();
         }
         function loadCalib() {
             const saved = localStorage.getItem('avd_ppc');
@@ -173,32 +175,52 @@
             }
         }
 
-        // 3. UI & MATHS
+        // --- UI ---
         function toggleSettings() {
-            document.getElementById('settingsPanel').classList.toggle('open');
+            const p = document.getElementById('settingsPanel');
+            p.style.display = (p.style.display === 'block') ? 'none' : 'block';
         }
         function updateAcuity() {
             acuity = parseFloat(document.getElementById('acuityRange').value);
             document.getElementById('acuityVal').innerText = acuity.toFixed(1);
+            updateStats();
         }
 
-        function calculateLetterSize(distCm) {
-            // Formule Optométrique : Taille (mm) = (Distance (mm) * tan(5')) / Acuité
-            // tan(5 min d'arc) ≈ 0.0014544
-            // Taille (cm) = Dist (cm) * 0.0014544 / Acuité
-            
+        // --- CALCUL TAILLE ---
+        function getLetterSizePx(distCm) {
+            // Formule : Taille(cm) = Distance(cm) * tan(5') / Acuité
+            // tan(5') ≈ 0.0014544
             const sizeCm = (distCm * 0.0014544) / acuity;
-            
-            // Conversion en Pixels : Taille(cm) * (Pixels / cm)
             const sizePx = sizeCm * pixelsPerCm;
-            
-            // Mise à jour affichage mm pour vérification
-            document.getElementById('dispSizeMm').innerText = (sizeCm * 10).toFixed(1);
-            
-            return Math.round(sizePx);
+            return { px: Math.round(sizePx), mm: (sizeCm * 10).toFixed(1) };
         }
 
-        // 4. BOUCLE PRINCIPALE
+        function updateStats() {
+            const data = getLetterSizePx(distance);
+            document.getElementById('dispSizeMm').innerText = data.mm;
+        }
+
+        function showLetter() {
+            const data = getLetterSizePx(distance);
+            const letter = letters[Math.floor(Math.random() * letters.length)];
+            
+            letterEl.innerText = letter;
+            letterEl.style.fontSize = data.px + 'px';
+            letterEl.style.opacity = '1';
+            
+            // Feedback console pour debug
+            console.log(`Affichage: ${letter}, Taille: ${data.px}px (${data.mm}mm) à ${distance}cm`);
+
+            setTimeout(() => {
+                letterEl.style.opacity = '0';
+            }, 80);
+        }
+
+        function manualTest() {
+            showLetter();
+        }
+
+        // --- BOUCLE VIDEO ---
         async function processFrame() {
             if (!model) return;
 
@@ -208,63 +230,23 @@
                 const face = predictions[0];
                 const landmarks = face.landmarks;
                 
-                // 0 = Oeil Gauche, 1 = Oeil Droit (sur Blazeface standard)
-                // Note: L'image est miroir (css transform), mais les coords sont brutes
+                // Calcul Distance
                 const leftEye = landmarks[0]; 
                 const rightEye = landmarks[1];
-                
-                // Distance inter-oculaire moyenne adult: 6.3cm
                 const distPx = Math.hypot(rightEye[0] - leftEye[0], rightEye[1] - leftEye[1]);
-                distance = (6.3 / distPx) * window.innerWidth; // Estimation distance écran
                 
-                document.getElementById('dispDist').innerText = Math.round(distance);
-                document.getElementById('dispSizeMm').innerText = 
-                    ((distance * 0.0014544 / acuity) * 10).toFixed(1);
-
-                // Détection Mouvement (Vitesse)
-                const nose = landmarks[2]; 
-                const now = performance.now();
-                
-                if (lastPos) {
-                    const dt = now - lastTime;
-                    if (dt > 0) {
-                        const dPx = Math.hypot(nose[0] - lastPos.x, nose[1] - lastPos.y);
-                        const vPxSec = (dPx / dt) * 1000;
-                        
-                        // Conversion approx Pixels/seconde -> Degrés/seconde
-                        // Hypothèse FOV ~ 60° sur largeur écran
-                        const degPerPx = 60 / video.videoWidth; 
-                        const speed = vPxSec * degPerPx;
-                        
-                        document.getElementById('dispSpeed').innerText = Math.round(speed);
-
-                        // Déclenchement
-                        if (state === 'IDLE' && speed > 150 && (now - lastFlash > 1000)) {
-                            triggerFlash();
-                            lastFlash = now;
-                        }
-                    }
+                // Sécurité division par zéro
+                if (distPx > 0) {
+                    distance = (6.3 / distPx) * window.innerWidth; // Approximation
+                    // Limite raisonnable
+                    if (distance > 200) distance = 200;
+                    if (distance < 20) distance = 20;
+                    
+                    document.getElementById('dispDist').innerText = Math.round(distance);
+                    updateStats();
                 }
-                lastPos = { x: nose[0], y: nose[1] };
-                lastTime = now;
             }
-
             requestAnimationFrame(processFrame);
-        }
-
-        function triggerFlash() {
-            state = 'FLASH';
-            const letter = letters[Math.floor(Math.random() * letters.length)];
-            const sizePx = calculateLetterSize(distance);
-            
-            letterEl.innerText = letter;
-            letterEl.style.fontSize = sizePx + 'px';
-            letterEl.style.opacity = '1';
-
-            setTimeout(() => {
-                letterEl.style.opacity = '0';
-                state = 'IDLE';
-            }, 60);
         }
     </script>
 </body>
