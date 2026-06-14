@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Test AV - Détection Avancée</title>
+    <title>Test AV - Détection Avancée avec Clavier</title>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         video {
@@ -83,6 +83,36 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
+
+        /* Clavier virtuel */
+        #keyboard {
+            position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+            z-index: 30; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 5px;
+            width: 90%; max-width: 500px;
+        }
+        .key {
+            width: 35px; height: 35px; background: #333; color: white;
+            border: none; border-radius: 5px; font-size: 18px; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .key:hover {
+            background: #555;
+            transform: scale(1.1);
+        }
+        .key.validated {
+            background: #28a745;
+        }
+        .key.invalid {
+            background: #dc3545;
+            cursor: not-allowed;
+        }
+        #waitingMessage {
+            position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+            color: #ffc107; font-size: 14px; font-weight: bold;
+            z-index: 31;
+        }
     </style>
 </head>
 <body>
@@ -135,6 +165,14 @@
         </div>
     </div>
 
+    <!-- Clavier virtuel -->
+    <div id="keyboard" style="display:none;">
+        <!-- Les touches seront générées par JavaScript -->
+    </div>
+
+    <!-- Message d'attente -->
+    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
+
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
@@ -147,6 +185,8 @@
         let letterSizeControl = document.getElementById('letterSizeControl');
         let letterSizeValueEl = document.getElementById('letterSizeValue');
         let letterSizeInputEl = document.getElementById('letterSizeInput');
+        let keyboard = document.getElementById('keyboard');
+        let waitingMessage = document.getElementById('waitingMessage');
 
         // Paramètres
         let acuity = 1.0;
@@ -161,11 +201,55 @@
         let smoothedSpeed = 0;
         let distance = 50;
         let rawDistance = 50;
-        let state = 'IDLE';
+        let state = 'IDLE'; // IDLE, WAITING_VALIDATION, FLASH
         let lastFlashTime = 0;
+        let currentDisplayedLetter = null;
+        let validatedLetter = null;
 
-        // Liste des lettres modifiée - SEULEMENT CES LETTRES SERONT UTILISÉES
+        // Liste des lettres
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
+
+        // --- INITIALISATION DU CLAVIER ---
+        function initKeyboard() {
+            keyboard.innerHTML = '';
+            const lettersSorted = [...letters].sort();
+
+            lettersSorted.forEach(letter => {
+                const key = document.createElement('button');
+                key.className = 'key';
+                key.textContent = letter;
+                key.onclick = () => validateLetter(letter);
+                keyboard.appendChild(key);
+            });
+        }
+
+        // --- VALIDATION D'UNE LETTRE ---
+        function validateLetter(letter) {
+            if (state !== 'WAITING_VALIDATION') return;
+
+            validatedLetter = letter;
+            const keys = document.querySelectorAll('.key');
+
+            // Réinitialiser tous les styles
+            keys.forEach(k => {
+                k.classList.remove('validated', 'invalid');
+            });
+
+            // Trouver la touche cliquée
+            const clickedKey = Array.from(keys).find(k => k.textContent === letter);
+
+            if (clickedKey) {
+                if (letter === currentDisplayedLetter) {
+                    clickedKey.classList.add('validated');
+                    state = 'IDLE';
+                    waitingMessage.style.display = 'none';
+                    updateStats();
+                } else {
+                    clickedKey.classList.add('invalid');
+                    // Ne pas passer en IDLE, l'utilisateur doit réessayer
+                }
+            }
+        }
 
         // --- CALIBRATION ---
         function toggleCalib() {
@@ -224,6 +308,7 @@
         // --- DÉMARRAGE ---
         async function startApp() {
             loadCalib();
+            initKeyboard();
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
@@ -233,6 +318,7 @@
                     overlay.style.display = 'none';
                     ui.style.display = 'block';
                     letterSizeControl.style.display = 'block';
+                    keyboard.style.display = 'flex';
                     video.play();
                     document.getElementById('statusInit').innerText = "Chargement IA...";
                     model = await blazeface.load();
@@ -302,7 +388,7 @@
             requestAnimationFrame(loop);
         }
 
-        // --- MACHINE D'ÉTAT ---
+        // --- MACHINE D'ÉTAT MODIFIÉE ---
         function handleState(currentSpeed, now) {
             const minSpeedTrigger = 150;
             const flashDuration = 60;
@@ -313,15 +399,20 @@
                     state = 'FLASH';
                     lastFlashTime = now;
 
-                    const randomLetter = letters[Math.floor(Math.random() * letters.length)];
-                    letterEl.innerText = randomLetter;
+                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
+                    letterEl.innerText = currentDisplayedLetter;
                     letterEl.style.fontSize = letterSizePx + 'px';
                     letterEl.style.opacity = '1';
 
+                    // Passer en attente de validation
+                    state = 'WAITING_VALIDATION';
+                    waitingMessage.style.display = 'block';
+
                     setTimeout(() => {
-                        letterEl.style.opacity = '0';
-                        state = 'IDLE';
-                    }, flashDuration);
+                        if (state === 'WAITING_VALIDATION' && letterEl.style.opacity !== '0') {
+                            letterEl.style.opacity = '0';
+                        }
+                    }, 3000); // La lettre reste visible 3 secondes max
                 }
             }
         }
