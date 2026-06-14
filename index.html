@@ -54,7 +54,7 @@
         }
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
 
-        /* Nouveau contrôle pour la taille des lettres */
+        /* Contrôle pour la taille des lettres */
         #letterSizeControl {
             position: absolute; top: 10px; right: 10px; z-index: 20;
             background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
@@ -125,7 +125,7 @@
         </div>
     </div>
 
-    <!-- Nouveau contrôle pour la taille des lettres -->
+    <!-- Contrôle pour la taille des lettres -->
     <div id="letterSizeControl" style="display:none;">
         <div id="letterSizeLabel">Taille lettre (px)</div>
         <div id="letterSizeValue">80</div>
@@ -165,6 +165,12 @@
         let state = 'IDLE';
         let lastFlashTime = 0;
         const letters = "C D F H L N O P T U V Z".split(" ");
+
+        // --- VARIABLES POUR LA RECONNAISSANCE VOCALE ---
+        let recognition;
+        let isListening = false;
+        let currentLetterToRecognize = null;
+        let errorsInRow = 0;
 
         // --- CALIBRATION ---
         function toggleCalib() {
@@ -211,7 +217,6 @@
 
         function updateAcuityFromSize() {
             // Calcul de l'acuité à partir de la taille en pixels
-            // acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx)
             acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx);
             acuity = Math.max(0.1, Math.min(2.0, acuity));
 
@@ -224,9 +229,86 @@
             letterSizeValueEl.innerText = letterSizePx;
         }
 
+        // --- INITIALISATION DE LA RECONNAISSANCE VOCALE ---
+        function initSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                console.warn("Reconnaissance vocale non supportée par ce navigateur.");
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'fr-FR'; // Langue française
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript.trim().toUpperCase();
+                console.log("Reconnu :", transcript);
+                validateLetter(transcript);
+            };
+
+            recognition.onerror = function(event) {
+                console.error("Erreur de reconnaissance vocale:", event.error);
+                errorsInRow++;
+                if (errorsInRow >= 3) {
+                    endTestWithError("3 erreurs de reconnaissance vocale.");
+                } else {
+                    setTimeout(startListening, 500);
+                }
+            };
+
+            recognition.onend = function() {
+                isListening = false;
+            };
+        }
+
+        function startListening() {
+            if (isListening || !recognition) return;
+            recognition.start();
+            isListening = true;
+            console.log("Écoute vocale démarrée...");
+        }
+
+        function stopListening() {
+            if (!isListening || !recognition) return;
+            recognition.stop();
+            isListening = false;
+        }
+
+        function validateLetter(pronouncedLetter) {
+            if (!currentLetterToRecognize) return;
+
+            if (pronouncedLetter === currentLetterToRecognize) {
+                console.log("✅ Bonne réponse :", currentLetterToRecognize);
+                errorsInRow = 0;
+                setTimeout(() => {
+                    state = 'IDLE';
+                    letterEl.style.opacity = '0';
+                }, 500);
+            } else {
+                console.log("❌ Mauvaise réponse. Attendu :", currentLetterToRecognize, "Reçu :", pronouncedLetter);
+                errorsInRow++;
+
+                if (errorsInRow >= 3) {
+                    endTestWithError("3 erreurs consécutives.");
+                } else {
+                    setTimeout(startListening, 500);
+                }
+            }
+        }
+
+        function endTestWithError(message) {
+            state = 'IDLE';
+            stopListening();
+            letterEl.style.opacity = '0';
+            alert("Test terminé : " + message);
+        }
+
         // --- DÉMARRAGE ---
         async function startApp() {
             loadCalib();
+            initSpeechRecognition(); // Initialiser la reconnaissance vocale
             try {
                 // On force une résolution correcte pour la stabilité
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -296,10 +378,9 @@
                         let rawSpeed = distPx / dt;
 
                         // Lissage de la vitesse (Réaction rapide mais sans pics)
-                        // Alpha 0.3 = 30% nouvelle valeur, 70% ancienne
                         smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
 
-                        // Conversion arbitraire pour l'affichage (facteur * 1000 pour avoir des "unités")
+                        // Conversion arbitraire pour l'affichage
                         speed = smoothedSpeed * 1000;
                     }
                 }
@@ -318,9 +399,8 @@
             requestAnimationFrame(loop);
         }
 
-        // --- MACHINE D'ÉTAT ---
+        // --- MACHINE D'ÉTAT (MODIFIÉE POUR LA RECONNAISSANCE VOCALE) ---
         function handleState(currentSpeed, now) {
-            // Seuil légèrement augmenté pour éviter les faux positifs grâce au lissage
             const minSpeedTrigger = 150;
             const flashDuration = 60;
             const cooldownDuration = 1000;
@@ -331,13 +411,19 @@
                     lastFlashTime = now;
 
                     const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+                    currentLetterToRecognize = randomLetter;
                     letterEl.innerText = randomLetter;
                     letterEl.style.fontSize = letterSizePx + 'px';
                     letterEl.style.opacity = '1';
 
+                    console.log("Lettre affichée :", randomLetter, " - Veuillez la prononcer.");
+
+                    // Démarrer l'écoute vocale après un court délai
+                    setTimeout(startListening, 300);
+
+                    // Ne pas masquer la lettre tant que la validation vocale n'est pas correcte
                     setTimeout(() => {
-                        letterEl.style.opacity = '0';
-                        state = 'IDLE';
+                        // La lettre reste visible jusqu'à validation correcte
                     }, flashDuration);
                 }
             }
@@ -368,13 +454,12 @@
             document.getElementById('statusSize').innerText = `Taille: ${letterSizePx} px`;
 
             // Mise à jour de la jauge
-            // On mappe 0-300 de vitesse sur 0-100% de la barre
             let pct = Math.min(100, (speed / 250) * 100);
             document.getElementById('speedBar').style.width = `${pct}%`;
 
             // Couleur de la jauge change si seuil atteint
             const bar = document.getElementById('speedBar');
-            if(speed > 150) bar.style.background = '#f00'; // Rouge si prêt à déclencher
+            if(speed > 150) bar.style.background = '#f00';
             else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
         }
     </script>
