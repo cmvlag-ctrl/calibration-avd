@@ -3,168 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Test AV - Détection Avancée avec Reconnaissance Vocale</title>
+    <title>Test AV - Détection Avancée</title>
     <style>
-        body {
-            margin: 0;
-            background: #000;
-            overflow: hidden;
-            font-family: sans-serif;
-            color: white;
-        }
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0.2;
-            z-index: 1;
-            transform: scaleX(-1);
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; opacity: 0.2; z-index: 1; transform: scaleX(-1);
         }
         #letterDisplay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
+            position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 100px;
-            font-weight: bold;
-            color: white;
-            opacity: 0;
-            z-index: 10;
-            pointer-events: none;
+            font-size: 100px; font-weight: bold; color: white;
+            opacity: 0; z-index: 10; pointer-events: none;
             text-shadow: 0 0 10px black;
         }
         #ui {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 20;
-            background: rgba(0,0,0,0.8);
-            padding: 10px;
-            border-radius: 8px;
+            position: absolute; top: 10px; left: 10px; z-index: 20;
+            background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
             max-width: 300px;
         }
-        .stat {
-            font-size: 12px;
-            margin: 2px 0;
-            color: #0f0;
-            font-family: monospace;
-        }
-        .error {
-            color: #f55;
-        }
+        .stat { font-size: 12px; margin: 2px 0; color: #0f0; font-family: monospace; }
+        .error { color: #f55; }
+
+        /* Jauge de vitesse */
         .speed-gauge {
-            height: 6px;
-            background: #333;
-            margin-top: 5px;
-            border-radius: 3px;
-            overflow: hidden;
+            height: 6px; background: #333; margin-top: 5px; border-radius: 3px; overflow: hidden;
         }
         .speed-bar {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #0f0, #ff0, #f00);
+            height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #ff0, #f00);
             transition: width 0.1s linear;
         }
+
         button {
-            background: #4ecdc4;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            width: 100%;
-            margin-top: 5px;
+            background: #4ecdc4; border: none; padding: 10px; border-radius: 5px;
+            cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px;
         }
-        button.secondary {
-            background: #555;
-            color: white;
-        }
+        button.secondary { background: #555; color: white; }
         #startOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 20px;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 100; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center; padding: 20px;
         }
         #calibPanel {
-            display: none;
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #444;
-            text-align: center;
+            display: none; margin-top: 10px; padding-top: 10px;
+            border-top: 1px solid #444; text-align: center;
         }
         .calib-bar-container {
-            height: 20px;
-            border: 1px dashed #666;
-            margin: 10px auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 12mm;
+            height: 20px; border: 1px dashed #666; margin: 10px auto;
+            display: flex; justify-content: center; align-items: center; width: 12mm;
         }
-        .calib-bar {
-            height: 100%;
-            background: red;
-            width: 10mm;
-            transform-origin: center;
-        }
+        .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
+
+        /* Nouveau contrôle pour la taille des lettres */
         #letterSizeControl {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 20;
-            background: rgba(0,0,0,0.8);
-            padding: 10px;
-            border-radius: 8px;
+            position: absolute; top: 10px; right: 10px; z-index: 20;
+            background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
             width: 120px;
             text-align: center;
         }
         #letterSizeLabel {
-            font-size: 11px;
-            margin-bottom: 5px;
+            font-size: 11px; margin-bottom: 5px;
         }
         #letterSizeValue {
-            font-size: 16px;
-            font-weight: bold;
-            margin: 5px 0;
+            font-size: 16px; font-weight: bold; margin: 5px 0;
             color: #4ecdc4;
         }
         .size-control-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 5px;
+            display: flex; justify-content: center; gap: 5px;
         }
         .size-btn {
-            width: 30px;
-            height: 30px;
-            font-size: 18px;
-            font-weight: bold;
-            background: #555;
-            padding: 0;
-            line-height: 28px;
+            width: 30px; height: 30px; font-size: 18px; font-weight: bold;
+            background: #555; padding: 0; line-height: 28px;
         }
         .size-btn:hover {
             background: #777;
         }
         #letterSizeInput {
-            width: 60px;
-            text-align: center;
-            background: #333;
-            color: white;
-            border: 1px solid #555;
-            border-radius: 4px;
-            padding: 5px;
+            width: 60px; text-align: center; background: #333; color: white;
+            border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
     </style>
@@ -184,6 +100,7 @@
     <div id="ui" style="display:none;">
         <div class="stat" id="statusInit">Initialisation...</div>
         <div class="stat" id="statusSpeed">Vitesse: 0</div>
+        <!-- Jauge visuelle -->
         <div class="speed-gauge"><div class="speed-bar" id="speedBar"></div></div>
 
         <div class="stat" id="statusDist" style="margin-top:5px;">Distance: -- cm</div>
@@ -208,6 +125,7 @@
         </div>
     </div>
 
+    <!-- Nouveau contrôle pour la taille des lettres -->
     <div id="letterSizeControl" style="display:none;">
         <div id="letterSizeLabel">Taille lettre (px)</div>
         <div id="letterSizeValue">80</div>
@@ -222,7 +140,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
     <script>
-        // Variables globales
         let model = null;
         let video = document.getElementById('video');
         let letterEl = document.getElementById('letterDisplay');
@@ -236,23 +153,41 @@
         let acuity = 1.0;
         let screenDPI = 300;
         let calibrationFactor = 1.0;
-        let letterSizePx = 80;
+        let letterSizePx = 80; // Taille par défaut en pixels
+
+        // Tracking
         let lastHeadPos = null;
         let lastTime = 0;
         let speed = 0;
-        let smoothedSpeed = 0;
+        let smoothedSpeed = 0; // Vitesse lissée pour l'affichage
         let distance = 50;
         let rawDistance = 50;
         let state = 'IDLE';
         let lastFlashTime = 0;
         const letters = "C D F H L N O P T U V Z".split(" ");
 
-        // --- VARIABLES POUR LA RECONNAISSANCE VOCALE ---
-        let recognition;
-        let isListening = false;
-        let currentLetterToRecognize = null;
-        let errorsInRow = 0;
-        let speechSupported = false;
+        // --- CALIBRATION ---
+        function toggleCalib() {
+            const panel = document.getElementById('calibPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+        function updateCalib() {
+            calibrationFactor = parseFloat(document.getElementById('calibSlider').value);
+            document.getElementById('calibBar').style.transform = `scaleX(${calibrationFactor})`;
+        }
+        function saveCalib() {
+            localStorage.setItem('avd_blazeface_calib_v3', calibrationFactor);
+            document.getElementById('calibPanel').style.display = 'none';
+            updateStats();
+        }
+        function loadCalib() {
+            const saved = localStorage.getItem('avd_blazeface_calib_v3');
+            if (saved) {
+                calibrationFactor = parseFloat(saved);
+                document.getElementById('calibSlider').value = calibrationFactor;
+                updateCalib();
+            }
+        }
 
         // --- GESTION DE LA TAILLE DES LETTRES ---
         function updateLetterSizeFromInput() {
@@ -275,8 +210,12 @@
         }
 
         function updateAcuityFromSize() {
+            // Calcul de l'acuité à partir de la taille en pixels
+            // acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx)
             acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx);
             acuity = Math.max(0.1, Math.min(2.0, acuity));
+
+            // Mettre à jour l'affichage de l'acuité
             document.getElementById('acuity').value = acuity.toFixed(1);
             document.getElementById('valAcuity').innerText = acuity.toFixed(1);
         }
@@ -285,136 +224,11 @@
             letterSizeValueEl.innerText = letterSizePx;
         }
 
-        // --- RECONNAISSANCE VOCALE ---
-        function initSpeechRecognition() {
-            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                speechSupported = false;
-                console.warn("Reconnaissance vocale non supportée par ce navigateur.");
-                document.getElementById('statusInit').innerText = "⚠️ Micro non disponible";
-                return;
-            }
-
-            speechSupported = true;
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'fr-FR';
-            recognition.maxAlternatives = 1;
-
-            recognition.onresult = function(event) {
-                const transcript = event.results[0][0].transcript.trim().toUpperCase();
-                console.log("🎤 Reconnu :", transcript);
-                validateLetter(transcript);
-            };
-
-            recognition.onerror = function(event) {
-                console.error("🔴 Erreur de reconnaissance vocale:", event.error);
-                errorsInRow++;
-                document.getElementById('statusInit').innerText = `⚠️ Erreur : ${event.error}`;
-
-                if (errorsInRow >= 3) {
-                    endTestWithError("3 erreurs de reconnaissance vocale.");
-                } else {
-                    setTimeout(startListening, 1000);
-                }
-            };
-
-            recognition.onend = function() {
-                isListening = false;
-                console.log("🔇 Écoute terminée");
-            };
-
-            console.log("✅ Reconnaissance vocale initialisée");
-        }
-
-        function startListening() {
-            if (!speechSupported || !recognition) return;
-
-            recognition.start();
-            isListening = true;
-            console.log("🎤 Écoute vocale démarrée...");
-
-            document.getElementById('statusInit').innerText = "🎤 Parlez...";
-            setTimeout(() => {
-                if (isListening) {
-                    document.getElementById('statusInit').innerText = "🔄 Relance écoute...";
-                }
-            }, 3000);
-        }
-
-        function stopListening() {
-            if (!isListening || !recognition) return;
-            recognition.stop();
-            isListening = false;
-            console.log("🔇 Écoute arrêtée");
-        }
-
-        function validateLetter(pronouncedLetter) {
-            if (!currentLetterToRecognize) return;
-
-            if (pronouncedLetter === currentLetterToRecognize) {
-                console.log("✅ Bonne réponse :", currentLetterToRecognize);
-                errorsInRow = 0;
-
-                setTimeout(() => {
-                    state = 'IDLE';
-                    letterEl.style.opacity = '0';
-                    document.getElementById('statusInit').innerText = "Prêt !";
-                }, 500);
-            } else {
-                console.log("❌ Mauvaise réponse. Attendu :", currentLetterToRecognize, "Reçu :", pronouncedLetter);
-                errorsInRow++;
-                document.getElementById('statusInit').innerText = `❌ "${pronouncedLetter}" incorrect. Réessayez...`;
-
-                if (errorsInRow >= 3) {
-                    endTestWithError("3 erreurs consécutives.");
-                } else {
-                    setTimeout(startListening, 1000);
-                }
-            }
-        }
-
-        function endTestWithError(message) {
-            state = 'IDLE';
-            stopListening();
-            letterEl.style.opacity = '0';
-            document.getElementById('statusInit').innerText = "❌ Test terminé : " + message;
-            alert("Test terminé : " + message);
-        }
-
-        // --- CALIBRATION ---
-        function toggleCalib() {
-            const panel = document.getElementById('calibPanel');
-            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function updateCalib() {
-            calibrationFactor = parseFloat(document.getElementById('calibSlider').value);
-            document.getElementById('calibBar').style.transform = `scaleX(${calibrationFactor})`;
-        }
-
-        function saveCalib() {
-            localStorage.setItem('avd_blazeface_calib_v3', calibrationFactor);
-            document.getElementById('calibPanel').style.display = 'none';
-            updateStats();
-        }
-
-        function loadCalib() {
-            const saved = localStorage.getItem('avd_blazeface_calib_v3');
-            if (saved) {
-                calibrationFactor = parseFloat(saved);
-                document.getElementById('calibSlider').value = calibrationFactor;
-                updateCalib();
-            }
-        }
-
         // --- DÉMARRAGE ---
         async function startApp() {
             loadCalib();
-            initSpeechRecognition(); // Initialiser la reconnaissance vocale
-
             try {
+                // On force une résolution correcte pour la stabilité
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
                 });
@@ -424,7 +238,6 @@
                     ui.style.display = 'block';
                     letterSizeControl.style.display = 'block';
                     video.play();
-
                     document.getElementById('statusInit').innerText = "Chargement IA...";
                     model = await blazeface.load();
                     document.getElementById('statusInit').innerText = "Prêt !";
@@ -433,6 +246,7 @@
                     let baseDPI = dpr > 2 ? 450 : (dpr > 1 ? 300 : 150);
                     screenDPI = baseDPI * calibrationFactor;
 
+                    // Initialiser la taille de la lettre
                     updateLetterDisplay();
                     loop();
                 };
@@ -449,6 +263,7 @@
 
             if (predictions.length > 0) {
                 const face = predictions[0];
+                // Landmark 2 = Nez (point le plus stable au centre)
                 const nose = face.landmarks[2];
                 const leftEye = face.landmarks[0];
                 const rightEye = face.landmarks[1];
@@ -462,20 +277,29 @@
                 if (distInterYeuxPx > 5) {
                     let calculatedDist = K_FACTOR / distInterYeuxPx;
                     rawDistance = calculatedDist;
+                    // Lissage fort de la distance (elle ne change pas vite)
                     distance = (distance * 0.9) + (rawDistance * 0.1);
                     distance = Math.max(30, Math.min(120, distance));
                 }
 
-                // 2. VITESSE
+                // 2. VITESSE (Calcule vectoriel)
                 const now = performance.now();
                 if (lastHeadPos) {
-                    const dt = (now - lastTime);
-                    if (dt > 16) {
+                    const dt = (now - lastTime); // ms
+
+                    if (dt > 16) { // ~60fps min
                         const dx = nose[0] - lastHeadPos.x;
                         const dy = nose[1] - lastHeadPos.y;
                         const distPx = Math.sqrt(dx*dx + dy*dy);
+
+                        // Vitesse brute en px/ms
                         let rawSpeed = distPx / dt;
+
+                        // Lissage de la vitesse (Réaction rapide mais sans pics)
+                        // Alpha 0.3 = 30% nouvelle valeur, 70% ancienne
                         smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
+
+                        // Conversion arbitraire pour l'affichage (facteur * 1000 pour avoir des "unités")
                         speed = smoothedSpeed * 1000;
                     }
                 }
@@ -484,7 +308,9 @@
 
                 handleState(speed, now);
                 updateStats();
+
             } else {
+                // Decay speed si pas de visage
                 smoothedSpeed = smoothedSpeed * 0.9;
                 speed = smoothedSpeed * 1000;
                 updateStats();
@@ -492,8 +318,9 @@
             requestAnimationFrame(loop);
         }
 
-        // --- MACHINE D'ÉTAT (MODIFIÉE POUR LA RECONNAISSANCE VOCALE) ---
+        // --- MACHINE D'ÉTAT ---
         function handleState(currentSpeed, now) {
+            // Seuil légèrement augmenté pour éviter les faux positifs grâce au lissage
             const minSpeedTrigger = 150;
             const flashDuration = 60;
             const cooldownDuration = 1000;
@@ -504,21 +331,14 @@
                     lastFlashTime = now;
 
                     const randomLetter = letters[Math.floor(Math.random() * letters.length)];
-                    currentLetterToRecognize = randomLetter;
                     letterEl.innerText = randomLetter;
                     letterEl.style.fontSize = letterSizePx + 'px';
                     letterEl.style.opacity = '1';
 
-                    console.log("📢 Lettre affichée :", randomLetter, " - Veuillez la prononcer.");
-                    document.getElementById('statusInit').innerText = `🔊 Dites : "${randomLetter}"`;
-
                     setTimeout(() => {
-                        if (speechSupported) {
-                            startListening();
-                        } else {
-                            document.getElementById('statusInit').innerText = "⚠️ Micro non disponible";
-                        }
-                    }, 300);
+                        letterEl.style.opacity = '0';
+                        state = 'IDLE';
+                    }, flashDuration);
                 }
             }
         }
@@ -533,6 +353,8 @@
         function updateParams() {
             acuity = parseFloat(document.getElementById('acuity').value);
             document.getElementById('valAcuity').innerText = acuity.toFixed(1);
+
+            // Mettre à jour la taille en pixels en fonction de l'acuité
             letterSizePx = Math.round(calculateSize(distance, acuity));
             updateLetterDisplay();
             letterSizeInputEl.value = letterSizePx;
@@ -541,13 +363,18 @@
         function updateStats() {
             document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
             document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
+
+            // Taille de la lettre courante
             document.getElementById('statusSize').innerText = `Taille: ${letterSizePx} px`;
 
+            // Mise à jour de la jauge
+            // On mappe 0-300 de vitesse sur 0-100% de la barre
             let pct = Math.min(100, (speed / 250) * 100);
             document.getElementById('speedBar').style.width = `${pct}%`;
 
+            // Couleur de la jauge change si seuil atteint
             const bar = document.getElementById('speedBar');
-            if(speed > 150) bar.style.background = '#f00';
+            if(speed > 150) bar.style.background = '#f00'; // Rouge si prêt à déclencher
             else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
         }
     </script>
