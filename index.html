@@ -84,16 +84,16 @@
             font-family: monospace;
         }
 
-        /* Clavier virtuel - MODIFIÉ */
+        /* Clavier virtuel - CORRIGÉ pour 2 lignes */
         #keyboard {
             position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
-            z-index: 30; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px;
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
-            width: 90%; max-width: 580px;
+            z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
+            width: 90%; max-width: 550px;
         }
         .key {
-            width: 50px; height: 50px; background: #333; color: white;
-            border: none; border-radius: 6px; font-size: 24px; font-weight: bold;
+            width: 42px; height: 42px; background: #333; color: white;
+            border: none; border-radius: 6px; font-size: 20px; font-weight: bold;
             cursor: pointer; display: flex; align-items: center; justify-content: center;
             transition: all 0.2s;
         }
