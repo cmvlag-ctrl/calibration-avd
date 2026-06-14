@@ -109,9 +109,13 @@
             cursor: not-allowed;
         }
         #waitingMessage {
-            position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
+            position: fixed; bottom: 10px; left: 50%;
+            transform: translateX(-50%);
             color: #ffc107; font-size: 14px; font-weight: bold;
             z-index: 31;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 15px;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -170,7 +174,7 @@
         <!-- Les touches seront générées par JavaScript -->
     </div>
 
-    <!-- Message d'attente -->
+    <!-- Message d'attente - POSITIONNÉ EN BAS DE L'ÉCRAN -->
     <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
