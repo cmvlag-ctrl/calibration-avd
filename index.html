@@ -54,26 +54,34 @@
         }
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
 
-        /* Nouvelle barre verticale pour l'acuité */
-        #acuityControl {
+        /* Nouveau contrôle pour la taille des lettres */
+        #letterSizeControl {
             position: absolute; top: 10px; right: 10px; z-index: 20;
             background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
-            width: 40px;
+            width: 120px;
+            text-align: center;
         }
-        #acuitySliderContainer {
-            width: 20px; height: 120px; background: #333; border-radius: 10px;
-            padding: 5px; margin: 0 auto; cursor: row-resize; position: relative;
+        #letterSizeLabel {
+            font-size: 11px; margin-bottom: 5px;
         }
-        #acuityHandle {
-            width: 100%; height: 20px; background: #4ecdc4; border-radius: 5px;
-            position: absolute; top: 50%; transform: translateY(-50%);
+        #letterSizeValue {
+            font-size: 16px; font-weight: bold; margin: 5px 0;
+            color: #4ecdc4;
         }
-        #acuityValue {
-            font-size: 11px; margin-top: 5px; text-align: center;
-            color: #0f0;
+        .size-control-buttons {
+            display: flex; justify-content: center; gap: 5px;
         }
-        #acuityLabel {
-            font-size: 11px; margin-bottom: 5px; text-align: center;
+        .size-btn {
+            width: 30px; height: 30px; font-size: 18px; font-weight: bold;
+            background: #555; padding: 0; line-height: 28px;
+        }
+        .size-btn:hover {
+            background: #777;
+        }
+        #letterSizeInput {
+            width: 60px; text-align: center; background: #333; color: white;
+            border: 1px solid #555; border-radius: 4px; padding: 5px;
+            font-family: monospace;
         }
     </style>
 </head>
@@ -100,6 +108,11 @@
 
         <hr style="border-color:#333; margin: 5px 0;">
 
+        <div style="font-size:11px; margin-bottom:5px;">
+            Acuité: <span id="valAcuity">1.0</span>
+            <input type="range" id="acuity" min="0.1" max="2.0" step="0.1" value="1.0" oninput="updateParams()" style="width:100%; margin:0;">
+        </div>
+
         <button class="secondary" onclick="toggleCalib()">📏 Calibrer l'écran</button>
 
         <div id="calibPanel">
@@ -112,13 +125,15 @@
         </div>
     </div>
 
-    <!-- Nouvelle barre verticale pour l'acuité -->
-    <div id="acuityControl" style="display:none;">
-        <div id="acuityLabel">Acuité</div>
-        <div id="acuitySliderContainer">
-            <div id="acuityHandle"></div>
+    <!-- Nouveau contrôle pour la taille des lettres -->
+    <div id="letterSizeControl" style="display:none;">
+        <div id="letterSizeLabel">Taille lettre (px)</div>
+        <div id="letterSizeValue">80</div>
+        <div class="size-control-buttons">
+            <button class="size-btn secondary" onclick="adjustLetterSize(-10)">-</button>
+            <input type="number" id="letterSizeInput" min="20" max="300" value="80" onchange="updateLetterSizeFromInput()">
+            <button class="size-btn secondary" onclick="adjustLetterSize(10)">+</button>
         </div>
-        <div id="acuityValue">1.0</div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
@@ -130,12 +145,15 @@
         let letterEl = document.getElementById('letterDisplay');
         let ui = document.getElementById('ui');
         let overlay = document.getElementById('startOverlay');
-        let acuityControl = document.getElementById('acuityControl');
+        let letterSizeControl = document.getElementById('letterSizeControl');
+        let letterSizeValueEl = document.getElementById('letterSizeValue');
+        let letterSizeInputEl = document.getElementById('letterSizeInput');
 
         // Paramètres
         let acuity = 1.0;
         let screenDPI = 300;
         let calibrationFactor = 1.0;
+        let letterSizePx = 80; // Taille par défaut en pixels
 
         // Tracking
         let lastHeadPos = null;
@@ -171,59 +189,39 @@
             }
         }
 
-        // --- GESTION DU SLIDER VERTICAL D'ACUITÉ ---
-        let acuitySlider = document.getElementById('acuitySliderContainer');
-        let acuityHandle = document.getElementById('acuityHandle');
-        let acuityValueEl = document.getElementById('acuityValue');
-        let isDragging = false;
-
-        // Initialisation du slider
-        function initAcuitySlider() {
-            updateAcuitySlider();
-            acuitySlider.addEventListener('mousedown', startDrag);
-            document.addEventListener('mousemove', drag);
-            document.addEventListener('mouseup', stopDrag);
+        // --- GESTION DE LA TAILLE DES LETTRES ---
+        function updateLetterSizeFromInput() {
+            const newSize = parseInt(letterSizeInputEl.value);
+            if (!isNaN(newSize) && newSize >= 20 && newSize <= 300) {
+                letterSizePx = newSize;
+                updateAcuityFromSize();
+                updateLetterDisplay();
+                updateStats();
+            }
+            letterSizeInputEl.value = letterSizePx;
         }
 
-        function startDrag(e) {
-            isDragging = true;
-            drag(e);
-        }
-
-        function drag(e) {
-            if (!isDragging) return;
-
-            const rect = acuitySlider.getBoundingClientRect();
-            const yPos = e.clientY - rect.top;
-
-            // Calculer la nouvelle position du curseur (0-100%)
-            const handleHeight = 20;
-            const availableHeight = rect.height - handleHeight;
-            const ratio = Math.max(0, Math.min(1, yPos / availableHeight));
-
-            // Convertir en valeur d'acuité (0.1 à 2.0)
-            // Haut du slider = acuité élevée (2.0) = petite lettre
-            // Bas du slider = acuité faible (0.1) = grande lettre
-            acuity = 0.1 + (2.0 - 0.1) * (1 - ratio);
-
-            updateAcuitySlider();
+        function adjustLetterSize(delta) {
+            letterSizePx = Math.max(20, Math.min(300, letterSizePx + delta));
+            letterSizeInputEl.value = letterSizePx;
+            updateAcuityFromSize();
+            updateLetterDisplay();
             updateStats();
         }
 
-        function stopDrag() {
-            isDragging = false;
+        function updateAcuityFromSize() {
+            // Calcul de l'acuité à partir de la taille en pixels
+            // acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx)
+            acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx);
+            acuity = Math.max(0.1, Math.min(2.0, acuity));
+
+            // Mettre à jour l'affichage de l'acuité
+            document.getElementById('acuity').value = acuity.toFixed(1);
+            document.getElementById('valAcuity').innerText = acuity.toFixed(1);
         }
 
-        function updateAcuitySlider() {
-            // Calculer la position du curseur en fonction de l'acuité actuelle
-            const ratio = (acuity - 0.1) / (2.0 - 0.1);
-            const rect = acuitySlider.getBoundingClientRect();
-            const handleHeight = 20;
-            const availableHeight = rect.height - handleHeight;
-            const topPos = (1 - ratio) * availableHeight;
-
-            acuityHandle.style.top = topPos + 'px';
-            acuityValueEl.innerText = acuity.toFixed(1);
+        function updateLetterDisplay() {
+            letterSizeValueEl.innerText = letterSizePx;
         }
 
         // --- DÉMARRAGE ---
@@ -238,7 +236,7 @@
                 video.onloadedmetadata = async () => {
                     overlay.style.display = 'none';
                     ui.style.display = 'block';
-                    acuityControl.style.display = 'block';
+                    letterSizeControl.style.display = 'block';
                     video.play();
                     document.getElementById('statusInit').innerText = "Chargement IA...";
                     model = await blazeface.load();
@@ -248,7 +246,8 @@
                     let baseDPI = dpr > 2 ? 450 : (dpr > 1 ? 300 : 150);
                     screenDPI = baseDPI * calibrationFactor;
 
-                    initAcuitySlider();
+                    // Initialiser la taille de la lettre
+                    updateLetterDisplay();
                     loop();
                 };
             } catch (err) {
@@ -333,7 +332,7 @@
 
                     const randomLetter = letters[Math.floor(Math.random() * letters.length)];
                     letterEl.innerText = randomLetter;
-                    letterEl.style.fontSize = calculateSize(distance, acuity) + 'px';
+                    letterEl.style.fontSize = letterSizePx + 'px';
                     letterEl.style.opacity = '1';
 
                     setTimeout(() => {
@@ -351,13 +350,22 @@
             return Math.max(20, Math.round(heightPx));
         }
 
+        function updateParams() {
+            acuity = parseFloat(document.getElementById('acuity').value);
+            document.getElementById('valAcuity').innerText = acuity.toFixed(1);
+
+            // Mettre à jour la taille en pixels en fonction de l'acuité
+            letterSizePx = Math.round(calculateSize(distance, acuity));
+            updateLetterDisplay();
+            letterSizeInputEl.value = letterSizePx;
+        }
+
         function updateStats() {
             document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
             document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
 
-            // Taille de la lettre courante (même si invisible)
-            let currentSize = calculateSize(distance, acuity);
-            document.getElementById('statusSize').innerText = `Taille: ${currentSize} px`;
+            // Taille de la lettre courante
+            document.getElementById('statusSize').innerText = `Taille: ${letterSizePx} px`;
 
             // Mise à jour de la jauge
             // On mappe 0-300 de vitesse sur 0-100% de la barre
@@ -368,9 +376,6 @@
             const bar = document.getElementById('speedBar');
             if(speed > 150) bar.style.background = '#f00'; // Rouge si prêt à déclencher
             else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
-
-            // Mise à jour du slider d'acuité
-            updateAcuitySlider();
         }
     </script>
 </body>
