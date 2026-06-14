@@ -86,7 +86,7 @@
 
         /* Clavier virtuel */
         #keyboard {
-            position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+            position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
             display: flex; flex-wrap: wrap; justify-content: center; gap: 5px;
             width: 90%; max-width: 500px;
@@ -109,7 +109,7 @@
             cursor: not-allowed;
         }
         #waitingMessage {
-            position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+            position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
             color: #ffc107; font-size: 14px; font-weight: bold;
             z-index: 31;
         }
@@ -204,9 +204,9 @@
         let state = 'IDLE'; // IDLE, WAITING_VALIDATION, FLASH
         let lastFlashTime = 0;
         let currentDisplayedLetter = null;
-        let validatedLetter = null;
+        let flashTimeout = null;
 
-        // Liste des lettres
+        // Liste des lettres (valeur fixe)
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
 
         // --- INITIALISATION DU CLAVIER ---
@@ -227,7 +227,12 @@
         function validateLetter(letter) {
             if (state !== 'WAITING_VALIDATION') return;
 
-            validatedLetter = letter;
+            // Effacer le timeout de disparition automatique
+            if (flashTimeout) {
+                clearTimeout(flashTimeout);
+                flashTimeout = null;
+            }
+
             const keys = document.querySelectorAll('.key');
 
             // Réinitialiser tous les styles
@@ -241,6 +246,7 @@
             if (clickedKey) {
                 if (letter === currentDisplayedLetter) {
                     clickedKey.classList.add('validated');
+                    letterEl.style.opacity = '0'; // Faire disparaître immédiatement
                     state = 'IDLE';
                     waitingMessage.style.display = 'none';
                     updateStats();
@@ -391,7 +397,7 @@
         // --- MACHINE D'ÉTAT MODIFIÉE ---
         function handleState(currentSpeed, now) {
             const minSpeedTrigger = 150;
-            const flashDuration = 60;
+            const flashDuration = 60; // Valeur fixe à 60ms
             const cooldownDuration = 1000;
 
             if (state === 'IDLE') {
@@ -408,11 +414,14 @@
                     state = 'WAITING_VALIDATION';
                     waitingMessage.style.display = 'block';
 
-                    setTimeout(() => {
-                        if (state === 'WAITING_VALIDATION' && letterEl.style.opacity !== '0') {
+                    // Disparaît automatiquement après 60ms
+                    flashTimeout = setTimeout(() => {
+                        if (state === 'WAITING_VALIDATION') {
                             letterEl.style.opacity = '0';
+                            state = 'IDLE';
+                            waitingMessage.style.display = 'none';
                         }
-                    }, 3000); // La lettre reste visible 3 secondes max
+                    }, flashDuration);
                 }
             }
         }
