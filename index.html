@@ -118,41 +118,6 @@
             border-radius: 4px;
             white-space: nowrap;
         }
-
-        /* Panneau de détection vestibulaire */
-        #vestibularPanel {
-            position: absolute; top: 10px; right: 10px; z-index: 20;
-            background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
-            width: 200px;
-            font-size: 12px;
-        }
-        .vestibular-axis {
-            margin: 5px 0;
-            padding: 3px;
-            border-radius: 3px;
-        }
-        .rotation { color: #0ff; }
-        .tilt { color: #ff0; }
-        .ralp { color: #f8961e; background: rgba(248, 150, 30, 0.2); }
-        .lateral { color: #26a69a; background: rgba(38, 166, 154, 0.2); }
-        .larp { color: #e76f51; background: rgba(231, 111, 81, 0.2); }
-        .status {
-            font-size: 10px; color: #aaa; margin-top: 8px;
-            font-style: italic;
-        }
-        .threshold-line {
-            height: 1px; background: #444; margin: 3px 0;
-        }
-        .plan-indicator {
-            display: flex; justify-content: space-around; margin-top: 10px;
-        }
-        .plan-circle {
-            width: 20px; height: 20px; border-radius: 50%;
-            border: 2px solid #555;
-        }
-        .plan-detected {
-            background: #0f0;
-        }
     </style>
 </head>
 <body>
@@ -160,6 +125,7 @@
     <div id="startOverlay">
         <h1>Test Acuité (Pro) - VHIT</h1>
         <p>Détection RALP / LATERAL / LARP pour évaluation vestibulaire</p>
+        <p style="font-size: 12px; margin-top: 10px;">Tournez la tête dans l'un des 3 plans pour afficher une lettre</p>
         <button onclick="startApp()">DÉMARRER</button>
         <p id="errorMsg" class="error"></p>
     </div>
@@ -213,40 +179,6 @@
     <!-- Message d'attente -->
     <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
 
-    <!-- Panneau de détection vestibulaire -->
-    <div id="vestibularPanel" style="display:none;">
-        <div style="text-align: center; margin-bottom: 10px; font-weight: bold; font-size: 14px;">📊 Plans Vestibulaires</div>
-
-        <div class="vestibular-axis rotation">🔄 Rotation: <span id="rotationValue">0°</span></div>
-        <div class="vestibular-axis tilt">📐 Inclinaison: <span id="tiltValue">0°</span></div>
-
-        <div style="margin: 10px 0; font-weight: bold; text-align: center;">Plans détectés:</div>
-
-        <div id="ralpStatus" class="vestibular-axis ralp" style="display:none;">
-            🔴 <b>RALP</b> (Rotation droite + inclinaison bas)
-        </div>
-        <div id="lateralStatus" class="vestibular-axis lateral" style="display:none;">
-            🔵 <b>LATERAL</b> (Rotation purement horizontale)
-        </div>
-        <div id="larpStatus" class="vestibular-axis larp" style="display:none;">
-            🟠 <b>LARP</b> (Rotation gauche + inclinaison bas)
-        </div>
-        <div id="noVestibularStatus" class="status">Aucun plan vestibulaire détecté</div>
-
-        <div class="plan-indicator">
-            <div class="plan-circle" id="ralpIndicator"></div>
-            <div class="plan-circle" id="lateralIndicator"></div>
-            <div class="plan-circle" id="larpIndicator"></div>
-        </div>
-
-        <div style="margin-top: 10px; font-size: 10px; color: #888;">
-            <div>Seuils: Rotation >15°, Inclinaison >10°</div>
-            <div>RALP: Rotation droite + inclinaison bas</div>
-            <div>LATERAL: Rotation purement horizontale</div>
-            <div>LARP: Rotation gauche + inclinaison bas</div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
@@ -261,7 +193,6 @@
         let letterSizeInputEl = document.getElementById('letterSizeInput');
         let keyboard = document.getElementById('keyboard');
         let waitingMessage = document.getElementById('waitingMessage');
-        let vestibularPanel = document.getElementById('vestibularPanel');
 
         // Paramètres
         let acuity = 1.0;
@@ -287,11 +218,9 @@
             tilt: 0,            // Angle d'inclinaison verticale (0° = horizontal)
             rotationThreshold: 15,  // Seuil pour considérer un mouvement significatif (15°)
             tiltThreshold: 10,      // Seuil pour l'inclinaison (10°)
-            ralpCount: 0,
-            lateralCount: 0,
-            larpCount: 0,
-            lastRotation: 0,
-            lastTilt: 0
+            margin: 5,          // Marge d'erreur de 5°
+            lastMovementTime: 0,
+            movementCooldown: 1000 // Cooldown de 1 seconde entre les affichages
         };
 
         // Liste des lettres
@@ -394,7 +323,7 @@
 
         // --- DÉTECTION DES 3 PLANS VESTIBULAIRES ---
         function detectVestibularPlanes(landmarks) {
-            if (!landmarks || landmarks.length === 0) return;
+            if (!landmarks || landmarks.length === 0) return false;
 
             const face = landmarks[0];
             const nose = face.landmarks[2];       // Point du nez
@@ -406,83 +335,32 @@
             const centerY = (leftEye[1] + rightEye[1]) / 2;
 
             // 2. CALCUL DE LA ROTATION HORIZONTALE (axe Z)
-            // Angle entre la ligne nez-centre et la verticale
             vestibularDetection.rotation = Math.atan2(nose[0] - centerX, nose[1] - centerY) * (180 / Math.PI);
 
             // 3. CALCUL DE L'INCLINAISON VERTICALE (axe X)
-            // Angle entre la ligne nez-centre et l'horizontale
             vestibularDetection.tilt = Math.atan2(nose[1] - centerY, nose[0] - centerX) * (180 / Math.PI);
 
-            // Mise à jour de l'UI
-            document.getElementById('rotationValue').textContent = `${Math.round(vestibularDetection.rotation)}°`;
-            document.getElementById('tiltValue').textContent = `${Math.round(vestibularDetection.tilt)}°`;
+            // Détection des 3 plans vestibulaires avec marge d'erreur
+            const rotation = vestibularDetection.rotation;
+            const tilt = vestibularDetection.tilt;
 
-            // Détection des 3 plans vestibulaires
-            let ralpDetected = false;
-            let lateralDetected = false;
-            let larpDetected = false;
+            // RALP: Rotation droite (10° à 20°) + inclinaison vers le bas (-15° à -5°)
+            const ralpDetected = rotation > (vestibularDetection.rotationThreshold - vestibularDetection.margin) &&
+                                rotation < (vestibularDetection.rotationThreshold + vestibularDetection.margin) &&
+                                tilt < (-vestibularDetection.tiltThreshold + vestibularDetection.margin) &&
+                                tilt > (-vestibularDetection.tiltThreshold - vestibularDetection.margin);
 
-            // RALP: Rotation droite (>15°) + inclinaison vers le bas (tilt < -10°)
-            if (vestibularDetection.rotation > vestibularDetection.rotationThreshold &&
-                vestibularDetection.tilt < -vestibularDetection.tiltThreshold) {
-                ralpDetected = true;
-                vestibularDetection.ralpCount++;
-            }
+            // LATERAL: Rotation purement horizontale (rotation > 20° ou < -20°) avec inclinaison faible
+            const lateralDetected = (Math.abs(rotation) > (vestibularDetection.rotationThreshold + vestibularDetection.margin)) &&
+                                   (Math.abs(tilt) < vestibularDetection.margin);
 
-            // LATERAL: Rotation purement horizontale (rotation >15° ou < -15°) avec inclinaison faible (<10°)
-            else if ((Math.abs(vestibularDetection.rotation) > vestibularDetection.rotationThreshold &&
-                     Math.abs(vestibularDetection.tilt) < vestibularDetection.tiltThreshold) ||
-                     (Math.abs(vestibularDetection.rotation) > vestibularDetection.rotationThreshold * 1.5)) {
-                lateralDetected = true;
-                vestibularDetection.lateralCount++;
-            }
+            // LARP: Rotation gauche (-20° à -10°) + inclinaison vers le bas (-15° à -5°)
+            const larpDetected = rotation < -(vestibularDetection.rotationThreshold - vestibularDetection.margin) &&
+                                rotation > -(vestibularDetection.rotationThreshold + vestibularDetection.margin) &&
+                                tilt < (-vestibularDetection.tiltThreshold + vestibularDetection.margin) &&
+                                tilt > (-vestibularDetection.tiltThreshold - vestibularDetection.margin);
 
-            // LARP: Rotation gauche (<-15°) + inclinaison vers le bas (tilt < -10°)
-            else if (vestibularDetection.rotation < -vestibularDetection.rotationThreshold &&
-                    vestibularDetection.tilt < -vestibularDetection.tiltThreshold) {
-                larpDetected = true;
-                vestibularDetection.larpCount++;
-            }
-
-            // Mise à jour de l'affichage
-            const ralpStatus = document.getElementById('ralpStatus');
-            const lateralStatus = document.getElementById('lateralStatus');
-            const larpStatus = document.getElementById('larpStatus');
-            const noStatus = document.getElementById('noVestibularStatus');
-
-            // Réinitialiser tous les indicateurs
-            ralpStatus.style.display = 'none';
-            lateralStatus.style.display = 'none';
-            larpStatus.style.display = 'none';
-            noStatus.style.display = 'block';
-
-            // Activer l'indicateur correspondant
-            if (ralpDetected) {
-                ralpStatus.style.display = 'block';
-                noStatus.style.display = 'none';
-                document.getElementById('ralpIndicator').classList.add('plan-detected');
-                console.log(`🔴 RALP détecté (Rotation: ${Math.round(vestibularDetection.rotation)}° | Tilt: ${Math.round(vestibularDetection.tilt)}°)`);
-            } else {
-                document.getElementById('ralpIndicator').classList.remove('plan-detected');
-            }
-
-            if (lateralDetected) {
-                lateralStatus.style.display = 'block';
-                noStatus.style.display = 'none';
-                document.getElementById('lateralIndicator').classList.add('plan-detected');
-                console.log(`🔵 LATERAL détecté (Rotation: ${Math.round(vestibularDetection.rotation)}° | Tilt: ${Math.round(vestibularDetection.tilt)}°)`);
-            } else {
-                document.getElementById('lateralIndicator').classList.remove('plan-detected');
-            }
-
-            if (larpDetected) {
-                larpStatus.style.display = 'block';
-                noStatus.style.display = 'none';
-                document.getElementById('larpIndicator').classList.add('plan-detected');
-                console.log(`🟠 LARP détecté (Rotation: ${Math.round(vestibularDetection.rotation)}° | Tilt: ${Math.round(vestibularDetection.tilt)}°)`);
-            } else {
-                document.getElementById('larpStatus').classList.remove('plan-detected');
-            }
+            return ralpDetected || lateralDetected || larpDetected;
         }
 
         // --- DÉMARRAGE ---
@@ -499,7 +377,6 @@
                     ui.style.display = 'block';
                     letterSizeControl.style.display = 'block';
                     keyboard.style.display = 'flex';
-                    vestibularPanel.style.display = 'block';
                     video.play();
                     document.getElementById('statusInit').innerText = "Chargement IA...";
                     model = await blazeface.load();
@@ -529,9 +406,6 @@
                 const leftEye = face.landmarks[0];
                 const rightEye = face.landmarks[1];
 
-                // Détection des plans vestibulaires
-                detectVestibularPlanes(predictions);
-
                 // 1. DISTANCE
                 const distInterYeuxPx = Math.sqrt(
                     Math.pow(rightEye[0] - leftEye[0], 2) +
@@ -541,91 +415,24 @@
                 if (distInterYeuxPx > 5) {
                     let calculatedDist = K_FACTOR / distInterYeuxPx;
                     rawDistance = calculatedDist;
-                    distance = (distance * 0.9) + (rawDistance * 0.1);
-                    distance = Math.max(30, Math.min(120, distance));
-                }
+                    distance = (distance * 0.9) + (rawDist[...] des 3 plans vestibulaires (RALP, LATERAL, LARP) avec une marge d'erreur de 5° :
 
-                // 2. VITESSE
-                const now = performance.now();
-                if (lastHeadPos) {
-                    const dt = (now - lastTime);
-                    if (dt > 16) {
-                        const dx = nose[0] - lastHeadPos.x;
-                        const dy = nose[1] - lastHeadPos.y;
-                        const distPx = Math.sqrt(dx*dx + dy*dy);
-                        let rawSpeed = distPx / dt;
-                        smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
-                        speed = smoothedSpeed * 1000;
-                    }
-                }
-                lastHeadPos = { x: nose[0], y: nose[1] };
-                lastTime = now;
+### 1️⃣ **Fonction de détection améliorée :**
+```javascript
+function detectVestibularPlanes(landmarks) {
+    // ... calcul des angles ...
 
-                handleState(speed, now);
-                updateStats();
+    // RALP: Rotation droite (10° à 20°) + inclinaison vers le bas (-15° à -5°)
+    const ralpDetected = rotation > (10) && rotation < (20) &&
+                        tilt < (-5) && tilt > (-15);
 
-            } else {
-                smoothedSpeed = smoothedSpeed * 0.9;
-                speed = smoothedSpeed * 1000;
-                updateStats();
-            }
-            requestAnimationFrame(loop);
-        }
+    // LATERAL: Rotation purement horizontale (rotation > 20° ou < -20°) avec inclinaison faible
+    const lateralDetected = (Math.abs(rotation) > 20) &&
+                           (Math.abs(tilt) < 5);
 
-        // --- MACHINE D'ÉTAT MODIFIÉE ---
-        function handleState(currentSpeed, now) {
-            const minSpeedTrigger = 150;
-            const flashDuration = 60;
-            const cooldownDuration = 1000;
+    // LARP: Rotation gauche (-20° à -10°) + inclinaison vers le bas (-15° à -5°)
+    const larpDetected = rotation < (-10) && rotation > (-20) &&
+                        tilt < (-5) && tilt > (-15);
 
-            if (state === 'IDLE') {
-                if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
-                    state = 'WAITING_VALIDATION';
-                    lastFlashTime = now;
-
-                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-                    letterEl.innerText = currentDisplayedLetter;
-                    letterEl.style.fontSize = letterSizePx + 'px';
-                    letterEl.style.opacity = '1';
-
-                    waitingMessage.style.display = 'block';
-
-                    flashTimeout = setTimeout(() => {
-                        if (state === 'WAITING_VALIDATION') {
-                            letterEl.style.opacity = '0';
-                        }
-                    }, flashDuration);
-                }
-            }
-        }
-
-        // --- CALCUL TAILLE OPTIQUE ---
-        function calculateSize(distCm, acuityDecimal) {
-            let heightCm = (distCm * 0.0145) / acuityDecimal;
-            let heightPx = (heightCm / 2.54) * screenDPI;
-            return Math.max(20, Math.round(heightPx));
-        }
-
-        function updateParams() {
-            acuity = parseFloat(document.getElementById('acuity').value);
-            document.getElementById('valAcuity').innerText = acuity.toFixed(1);
-            letterSizePx = Math.round(calculateSize(distance, acuity));
-            updateLetterDisplay();
-            letterSizeInputEl.value = letterSizePx;
-        }
-
-        function updateStats() {
-            document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
-            document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
-            document.getElementById('statusSize').innerText = `Taille: ${letterSizePx} px`;
-
-            let pct = Math.min(100, (speed / 250) * 100);
-            document.getElementById('speedBar').style.width = `${pct}%`;
-
-            const bar = document.getElementById('speedBar');
-            if(speed > 150) bar.style.background = '#f00';
-            else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
-        }
-    </script>
-</body>
-</html>
+    return ralpDetected || lateralDetected || larpDetected;
+}
