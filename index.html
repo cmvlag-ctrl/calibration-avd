@@ -54,7 +54,7 @@
         }
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
 
-        /* Nouveau contrôle pour la taille des lettres */
+        /* Contrôle pour la taille des lettres */
         #letterSizeControl {
             position: absolute; top: 10px; right: 10px; z-index: 20;
             background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
@@ -100,7 +100,6 @@
     <div id="ui" style="display:none;">
         <div class="stat" id="statusInit">Initialisation...</div>
         <div class="stat" id="statusSpeed">Vitesse: 0</div>
-        <!-- Jauge visuelle -->
         <div class="speed-gauge"><div class="speed-bar" id="speedBar"></div></div>
 
         <div class="stat" id="statusDist" style="margin-top:5px;">Distance: -- cm</div>
@@ -125,7 +124,7 @@
         </div>
     </div>
 
-    <!-- Nouveau contrôle pour la taille des lettres -->
+    <!-- Contrôle pour la taille des lettres -->
     <div id="letterSizeControl" style="display:none;">
         <div id="letterSizeLabel">Taille lettre (px)</div>
         <div id="letterSizeValue">80</div>
@@ -153,18 +152,20 @@
         let acuity = 1.0;
         let screenDPI = 300;
         let calibrationFactor = 1.0;
-        let letterSizePx = 80; // Taille par défaut en pixels
+        let letterSizePx = 80;
 
         // Tracking
         let lastHeadPos = null;
         let lastTime = 0;
         let speed = 0;
-        let smoothedSpeed = 0; // Vitesse lissée pour l'affichage
+        let smoothedSpeed = 0;
         let distance = 50;
         let rawDistance = 50;
         let state = 'IDLE';
         let lastFlashTime = 0;
-        const letters = "C D F H L N O P T U V Z".split(" ");
+
+        // Liste des lettres modifiée - SEULEMENT CES LETTRES SERONT UTILISÉES
+        const letters = "D F P V A N L C O E R U S Z H".split(" ");
 
         // --- CALIBRATION ---
         function toggleCalib() {
@@ -210,12 +211,8 @@
         }
 
         function updateAcuityFromSize() {
-            // Calcul de l'acuité à partir de la taille en pixels
-            // acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx)
             acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx);
             acuity = Math.max(0.1, Math.min(2.0, acuity));
-
-            // Mettre à jour l'affichage de l'acuité
             document.getElementById('acuity').value = acuity.toFixed(1);
             document.getElementById('valAcuity').innerText = acuity.toFixed(1);
         }
@@ -228,7 +225,6 @@
         async function startApp() {
             loadCalib();
             try {
-                // On force une résolution correcte pour la stabilité
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
                 });
@@ -246,7 +242,6 @@
                     let baseDPI = dpr > 2 ? 450 : (dpr > 1 ? 300 : 150);
                     screenDPI = baseDPI * calibrationFactor;
 
-                    // Initialiser la taille de la lettre
                     updateLetterDisplay();
                     loop();
                 };
@@ -263,7 +258,6 @@
 
             if (predictions.length > 0) {
                 const face = predictions[0];
-                // Landmark 2 = Nez (point le plus stable au centre)
                 const nose = face.landmarks[2];
                 const leftEye = face.landmarks[0];
                 const rightEye = face.landmarks[1];
@@ -277,29 +271,20 @@
                 if (distInterYeuxPx > 5) {
                     let calculatedDist = K_FACTOR / distInterYeuxPx;
                     rawDistance = calculatedDist;
-                    // Lissage fort de la distance (elle ne change pas vite)
                     distance = (distance * 0.9) + (rawDistance * 0.1);
                     distance = Math.max(30, Math.min(120, distance));
                 }
 
-                // 2. VITESSE (Calcule vectoriel)
+                // 2. VITESSE
                 const now = performance.now();
                 if (lastHeadPos) {
-                    const dt = (now - lastTime); // ms
-
-                    if (dt > 16) { // ~60fps min
+                    const dt = (now - lastTime);
+                    if (dt > 16) {
                         const dx = nose[0] - lastHeadPos.x;
                         const dy = nose[1] - lastHeadPos.y;
                         const distPx = Math.sqrt(dx*dx + dy*dy);
-
-                        // Vitesse brute en px/ms
                         let rawSpeed = distPx / dt;
-
-                        // Lissage de la vitesse (Réaction rapide mais sans pics)
-                        // Alpha 0.3 = 30% nouvelle valeur, 70% ancienne
                         smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
-
-                        // Conversion arbitraire pour l'affichage (facteur * 1000 pour avoir des "unités")
                         speed = smoothedSpeed * 1000;
                     }
                 }
@@ -310,7 +295,6 @@
                 updateStats();
 
             } else {
-                // Decay speed si pas de visage
                 smoothedSpeed = smoothedSpeed * 0.9;
                 speed = smoothedSpeed * 1000;
                 updateStats();
@@ -320,7 +304,6 @@
 
         // --- MACHINE D'ÉTAT ---
         function handleState(currentSpeed, now) {
-            // Seuil légèrement augmenté pour éviter les faux positifs grâce au lissage
             const minSpeedTrigger = 150;
             const flashDuration = 60;
             const cooldownDuration = 1000;
@@ -353,8 +336,6 @@
         function updateParams() {
             acuity = parseFloat(document.getElementById('acuity').value);
             document.getElementById('valAcuity').innerText = acuity.toFixed(1);
-
-            // Mettre à jour la taille en pixels en fonction de l'acuité
             letterSizePx = Math.round(calculateSize(distance, acuity));
             updateLetterDisplay();
             letterSizeInputEl.value = letterSizePx;
@@ -363,18 +344,13 @@
         function updateStats() {
             document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
             document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
-
-            // Taille de la lettre courante
             document.getElementById('statusSize').innerText = `Taille: ${letterSizePx} px`;
 
-            // Mise à jour de la jauge
-            // On mappe 0-300 de vitesse sur 0-100% de la barre
             let pct = Math.min(100, (speed / 250) * 100);
             document.getElementById('speedBar').style.width = `${pct}%`;
 
-            // Couleur de la jauge change si seuil atteint
             const bar = document.getElementById('speedBar');
-            if(speed > 150) bar.style.background = '#f00'; // Rouge si prêt à déclencher
+            if(speed > 150) bar.style.background = '#f00';
             else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
         }
     </script>
