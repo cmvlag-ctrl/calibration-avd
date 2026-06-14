@@ -5,168 +5,187 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Test AV - Détection RALP/LATERAL/LARP (VHIT)</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
-        video {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; opacity: 0.2; z-index: 1; transform: scaleX(-1);
+        body {
+            margin: 0;
+            background: #000;
+            overflow: hidden;
+            font-family: sans-serif;
+            color: white;
         }
+
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.2;
+            z-index: 1;
+            transform: scaleX(-1);
+        }
+
         #letterDisplay {
-            position: absolute; top: 50%; left: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 100px; font-weight: bold; color: white;
-            opacity: 0; z-index: 10; pointer-events: none;
+            font-size: 100px;
+            font-weight: bold;
+            color: white;
+            opacity: 0;
+            z-index: 10;
+            pointer-events: none;
             text-shadow: 0 0 10px black;
         }
+
         #ui {
-            position: absolute; top: 10px; left: 10px; z-index: 20;
-            background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 20;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 8px;
             max-width: 300px;
         }
-        .stat { font-size: 12px; margin: 2px 0; color: #0f0; font-family: monospace; }
-        .error { color: #f55; }
+
+        .stat {
+            font-size: 12px;
+            margin: 2px 0;
+            color: #0f0;
+            font-family: monospace;
+        }
+
+        .error {
+            color: #f55;
+        }
 
         /* Jauge de vitesse */
         .speed-gauge {
-            height: 6px; background: #333; margin-top: 5px; border-radius: 3px; overflow: hidden;
+            height: 6px;
+            background: #333;
+            margin-top: 5px;
+            border-radius: 3px;
+            overflow: hidden;
         }
+
         .speed-bar {
-            height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #ff0, #f00);
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0f0, #ff0, #f00);
             transition: width 0.1s linear;
         }
 
-        button {
-            background: #4ecdc4; border: none; padding: 10px; border-radius: 5px;
-            cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px;
-        }
-        button.secondary { background: #555; color: white; }
-        #startOverlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 100; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; text-align: center; padding: 20px;
-        }
-        #calibPanel {
-            display: none; margin-top: 10px; padding-top: 10px;
-            border-top: 1px solid #444; text-align: center;
-        }
-        .calib-bar-container {
-            height: 20px; border: 1px dashed #666; margin: 10px auto;
-            display: flex; justify-content: center; align-items: center; width: 12mm;
-        }
-        .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
-
         /* Clavier virtuel */
         #keyboard {
-            position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
-            z-index: 30; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 5px;
-            width: 90%; max-width: 500px;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            z-index: 20;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
         }
+
         .key {
-            width: 35px; height: 35px; background: #333; color: white;
-            border: none; border-radius: 5px; font-size: 18px; font-weight: bold;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            background: #444;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
             transition: all 0.2s;
         }
+
         .key:hover {
             background: #555;
-            transform: scale(1.1);
         }
+
         .key.validated {
-            background: #28a745;
+            background: #0f0;
+            color: black;
         }
+
         .key.invalid {
-            background: #dc3545;
-            cursor: not-allowed;
+            background: #f55;
+            color: white;
         }
-        #waitingMessage {
-            position: fixed; bottom: 10px; left: 50%;
-            transform: translateX(-50%);
-            color: #ffc107; font-size: 14px; font-weight: bold;
-            z-index: 31;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 8px 15px;
-            border-radius: 4px;
-            white-space: nowrap;
+
+        button {
+            background: #4ecdc4;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #45b7b8;
         }
     </style>
 </head>
 <body>
-
-    <div id="startOverlay">
-        <h1>Test Acuité Vestibulaire</h1>
-        <p>Détection des 3 plans : RALP, LATERAL et LARP</p>
-        <button onclick="startApp()">DÉMARRER</button>
-        <p id="errorMsg" class="error"></p>
-    </div>
-
-    <video id="video" playsinline autoplay muted></video>
-    <div id="letterDisplay">A</div>
-
-    <div id="ui" style="display:none;">
-        <div class="stat" id="statusInit">Initialisation...</div>
-        <div class="stat" id="statusSpeed">Vitesse: 0</div>
-        <div class="speed-gauge"><div class="speed-bar" id="speedBar"></div></div>
-        <div class="stat" id="statusDist" style="margin-top:5px;">Distance: -- cm</div>
-        <hr style="border-color:#333; margin: 5px 0;">
-        <button class="secondary" onclick="toggleCalib()">📏 Calibrer l'écran</button>
-        <div id="calibPanel">
-            <p style="font-size:11px; margin:0; color:#ddd;">Ajustez la barre rouge à <b>1 cm</b> avec une règle.</p>
-            <div class="calib-bar-container">
-                <div class="calib-bar" id="calibBar"></div>
-            </div>
-            <input type="range" id="calibSlider" min="0.5" max="2.0" step="0.05" value="1.0" oninput="updateCalib()" style="width:100%;">
-            <button onclick="saveCalib()" style="background:#28a745; margin-top:5px;">Sauvegarder</button>
+    <video id="video" autoplay muted></video>
+    <div id="letterDisplay"></div>
+    <div id="ui">
+        <div class="stat">Vitesse: 0</div>
+        <div class="stat">Distance: 0 cm</div>
+        <div class="stat">État: IDLE</div>
+        <div class="speed-gauge">
+            <div id="speedBar" class="speed-bar"></div>
+        </div>
+        <button id="startBtn">DÉMARRER</button>
+        <div id="waitingMessage" style="display: none; margin-top: 10px; text-align: center;">
+            Validez la lettre affichée au centre
         </div>
     </div>
-
-    <!-- Clavier virtuel -->
-    <div id="keyboard" style="display:none;">
-        <!-- Les touches seront générées par JavaScript -->
-    </div>
-
-    <!-- Message d'attente -->
-    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
-
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
+    <div id="keyboard"></div>
 
     <script>
         // Variables globales
-        let model = null;
-        let video = document.getElementById('video');
-        let letterEl = document.getElementById('letterDisplay');
-        let ui = document.getElementById('ui');
-        let overlay = document.getElementById('startOverlay');
-        let keyboard = document.getElementById('keyboard');
-        let waitingMessage = document.getElementById('waitingMessage');
+        const video = document.getElementById('video');
+        const letterEl = document.getElementById('letterDisplay');
+        const startBtn = document.getElementById('startBtn');
+        const waitingMessage = document.getElementById('waitingMessage');
+        const keyboard = document.getElementById('keyboard');
+        const uiStats = {
+            speed: document.querySelectorAll('.stat')[0],
+            distance: document.querySelectorAll('.stat')[1],
+            state: document.querySelectorAll('.stat')[2]
+        };
+        const speedBar = document.getElementById('speedBar');
 
-        // Paramètres
-        let acuity = 1.0;
-        let screenDPI = 300;
-        let calibrationFactor = 1.0;
-        let distance = 50;
-        let rawDistance = 50;
-        let state = 'IDLE'; // IDLE ou WAITING_VALIDATION
-        let lastHeadPos = null;
-        let lastTime = 0;
-        let speed = 0;
-        let smoothedSpeed = 0;
-        let currentDisplayedLetter = null;
+        // Variables de contrôle
+        let state = 'IDLE'; // 'IDLE' ou 'WAITING_VALIDATION'
         let lastFlashTime = 0;
+        let currentDisplayedLetter = '';
+        let speed = 0;
+        let distance = 0;
+        let animationFrameId = null;
+        let lastTime = 0;
 
-        // Liste des lettres
-        const letters = "D F P V A N L C O E R U S Z H".split(" ");
+        // Lettres à afficher
+        const letters = ['E', 'F', 'H', 'K', 'N', 'O', 'R', 'S', 'T', 'U', 'V', 'Y'];
 
         // --- INITIALISATION DU CLAVIER ---
         function initKeyboard() {
             keyboard.innerHTML = '';
-            const lettersSorted = [...letters].sort();
+            const letters = ['E', 'F', 'H', 'K', 'N', 'O', 'R', 'S', 'T', 'U', 'V', 'Y'];
 
-            lettersSorted.forEach(letter => {
+            letters.forEach(letter => {
                 const key = document.createElement('button');
                 key.className = 'key';
                 key.textContent = letter;
-                key.onclick = () => validateLetter(letter);
+                key.addEventListener('click', () => validateLetter(letter));
                 keyboard.appendChild(key);
             });
         }
@@ -192,144 +211,6 @@
             }
         }
 
-        // --- DÉTECTION DES PLANS VESTIBULAIRES ---
-        function detectVestibularPlanes(landmarks) {
-            // Extraire les points importants
-            const nose = landmarks[2]; // Point du nez
-            const leftEye = landmarks[0];
-            const rightEye = landmarks[1];
-
-            // Calculer les angles
-            const dx = nose[0] - ((leftEye[0] + rightEye[0]) / 2);
-            const dy = nose[1] - ((leftEye[1] + rightEye[1]) / 2);
-
-            // Rotation (horizontal)
-            const rotation = Math.atan2(dy, dx) * (180 / Math.PI);
-
-            // Inclinaison (vertical)
-            const eyeDy = leftEye[1] - rightEye[1];
-            const tilt = Math.atan2(eyeDy, Math.sqrt(dx*dx + dy*dy)) * (180 / Math.PI);
-
-            // Détection des plans avec marge d'erreur de 5°
-            const ralpDetected = rotation > (10) && rotation < (20) &&
-                                tilt < (-5) && tilt > (-15);
-
-            const lateralDetected = (Math.abs(rotation) > 20) &&
-                                   (Math.abs(tilt) < 5);
-
-            const larpDetected = rotation < (-10) && rotation > (-20) &&
-                                tilt < (-5) && tilt > (-15);
-
-            return ralpDetected || lateralDetected || larpDetected;
-        }
-
-        // --- CALIBRATION ---
-        function toggleCalib() {
-            const panel = document.getElementById('calibPanel');
-            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-        }
-        function updateCalib() {
-            calibrationFactor = parseFloat(document.getElementById('calibSlider').value);
-            document.getElementById('calibBar').style.transform = `scaleX(${calibrationFactor})`;
-        }
-        function saveCalib() {
-            localStorage.setItem('avd_blazeface_calib_v3', calibrationFactor);
-            document.getElementById('calibPanel').style.display = 'none';
-        }
-        function loadCalib() {
-            const saved = localStorage.getItem('avd_blazeface_calib_v3');
-            if (saved) {
-                calibrationFactor = parseFloat(saved);
-                document.getElementById('calibSlider').value = calibrationFactor;
-                updateCalib();
-            }
-        }
-
-        // --- DÉMARRAGE ---
-        async function startApp() {
-            loadCalib();
-            initKeyboard();
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'user',
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    }
-                });
-                video.srcObject = stream;
-                video.onloadedmetadata = async () => {
-                    overlay.style.display = 'none';
-                    ui.style.display = 'block';
-                    keyboard.style.display = 'flex';
-                    video.play();
-                    document.getElementById('statusInit').innerText = "Chargement IA...";
-                    model = await blazeface.load();
-                    document.getElementById('statusInit').innerText = "Prêt !";
-                    updateStats();
-                    loop();
-                };
-            } catch (err) {
-                document.getElementById('errorMsg').innerText = "Erreur Caméra : " + err.message;
-            }
-        }
-
-        // --- BOUCLE PRINCIPALE ---
-        async function loop() {
-            if (!model) return setTimeout(loop, 100);
-
-            const predictions = await model.estimateFaces(video, false);
-
-            if (predictions.length > 0) {
-                const face = predictions[0];
-                const nose = face.landmarks[2];
-                const leftEye = face.landmarks[0];
-                const rightEye = face.landmarks[1];
-
-                // 1. DISTANCE
-                const distInterYeuxPx = Math.sqrt(
-                    Math.pow(rightEye[0] - leftEye[0], 2) +
-                    Math.pow(rightEye[1] - leftEye[1], 2)
-                );
-                const K_FACTOR = 2800;
-                if (distInterYeuxPx > 5) {
-                    let calculatedDist = K_FACTOR / distInterYeuxPx;
-                    rawDistance = calculatedDist;
-                    distance = (distance * 0.9) + (rawDistance * 0.1);
-                    distance = Math.max(30, Math.min(120, distance));
-                }
-
-                // 2. VITESSE
-                const now = performance.now();
-                if (lastHeadPos) {
-                    const dt = (now - lastTime);
-                    if (dt > 16) {
-                        const dx = nose[0] - lastHeadPos.x;
-                        const dy = nose[1] - lastHeadPos.y;
-                        const distPx = Math.sqrt(dx*dx + dy*dy);
-                        let rawSpeed = distPx / dt;
-                        smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
-                        speed = smoothedSpeed * 1000;
-                    }
-                }
-                lastHeadPos = { x: nose[0], y: nose[1] };
-                lastTime = now;
-
-                // 3. DÉTECTION DES PLANS
-                if (detectVestibularPlanes(face.landmarks)) {
-                    handleState(speed, now);
-                }
-
-                updateStats();
-
-            } else {
-                smoothedSpeed = smoothedSpeed * 0.9;
-                speed = smoothedSpeed * 1000;
-                updateStats();
-            }
-            requestAnimationFrame(loop);
-        }
-
         // --- MACHINE D'ÉTAT ---
         function handleState(currentSpeed, now) {
             const minSpeedTrigger = 150;
@@ -341,25 +222,80 @@
 
                 currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
                 letterEl.innerText = currentDisplayedLetter;
-                letterEl.style.fontSize = '100px';
                 letterEl.style.opacity = '1';
+                letterEl.style.fontSize = '100px';
 
                 waitingMessage.style.display = 'block';
             }
         }
 
-        // --- STATISTIQUES ---
-        function updateStats() {
-            document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
-            document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
-
-            let pct = Math.min(100, (speed / 250) * 100);
-            document.getElementById('speedBar').style.width = `${pct}%`;
-
-            const bar = document.getElementById('speedBar');
-            if(speed > 150) bar.style.background = '#f00';
-            else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
+        // --- GESTION DE L'AFFICHAGE ---
+        function updateDisplay(now) {
+            // Faire disparaître la lettre après 60ms si non validée
+            if (state === 'WAITING_VALIDATION' && now - lastFlashTime >= 60) {
+                letterEl.style.opacity = '0';
+                state = 'IDLE';
+                waitingMessage.style.display = 'none';
+            }
         }
+
+        // --- BOUCLE PRINCIPALE ---
+        function loop(currentTime) {
+            if (!lastTime) lastTime = currentTime;
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+
+            // Calcul de la vitesse (simulation)
+            speed = Math.sin(currentTime / 500) * 200 + 100;
+            distance = speed * (deltaTime / 1000);
+
+            // Mise à jour de l'UI
+            uiStats.speed.textContent = `Vitesse: ${Math.round(speed)}`;
+            uiStats.distance.textContent = `Distance: ~${Math.round(distance)} cm`;
+            uiStats.state.textContent = `État: ${state}`;
+
+            // Mise à jour de la jauge
+            const pct = Math.min(100, (speed / 250) * 100);
+            speedBar.style.width = `${pct}%`;
+
+            if(speed > 150) {
+                speedBar.style.background = '#f00';
+            } else {
+                speedBar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
+            }
+
+            // Gestion de l'état
+            handleState(speed, currentTime);
+            updateDisplay(currentTime);
+
+            animationFrameId = requestAnimationFrame(loop);
+        }
+
+        // --- DÉMARRAGE ---
+        startBtn.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                startBtn.style.display = 'none';
+
+                // Initialisation
+                initKeyboard();
+                animationFrameId = requestAnimationFrame(loop);
+            } catch (err) {
+                console.error("Erreur accès caméra:", err);
+                alert("Impossible d'accéder à la caméra");
+            }
+        });
+
+        // Nettoyage
+        window.addEventListener('beforeunload', () => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        });
     </script>
 </body>
 </html>
