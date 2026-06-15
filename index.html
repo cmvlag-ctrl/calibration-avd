@@ -99,10 +99,10 @@
             transform: scale(1.1);
         }
         .key.validated {
-            background: #28a745; /* Vert Bootstrap */
+            background: #28a745;
         }
         .key.invalid {
-            background: #dc3545; /* Rouge Bootstrap */
+            background: #dc3545;
         }
         /* Message "Début" */
         #startMessage {
@@ -115,10 +115,19 @@
         }
         /* Score */
         #scoreDisplay {
-            position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
-            z-index: 30; background: rgba(0,0,0,0.8); padding: 10px 15px;
-            border-radius: 8px; font-family: monospace; font-size: 14px;
-            text-align: center; width: 90%; max-width: 550px;
+            position: fixed;
+            bottom: 100px;  /* Juste en dessous du clavier (90px + 10px de marge) */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            text-align: center;
+            width: 90%;
+            max-width: 550px;
         }
         /* Message d'attente */
         #waitingMessage {
@@ -219,18 +228,6 @@
     let calibrationFactor = 1.0;
     let letterSizePx = 80;
 
-    // Tracking
-    let lastHeadPos = null;
-    let lastTime = 0;
-    let speed = 0;
-    let smoothedSpeed = 0;
-    let distance = 50;
-    let rawDistance = 50;
-    let state = 'IDLE'; // IDLE, WAITING_VALIDATION
-    let lastFlashTime = 0;
-    let currentDisplayedLetter = null;
-    let flashTimeout = null;
-
     // Statistiques
     let totalLetters = 0;
     let correctLetters = 0;
@@ -257,7 +254,6 @@
     function validateLetter(letter) {
         if (state !== 'WAITING_VALIDATION') return;
 
-        // Effacer le timeout de disparition automatique
         if (flashTimeout) {
             clearTimeout(flashTimeout);
             flashTimeout = null;
@@ -271,20 +267,16 @@
         if (clickedKey) {
             totalLetters++;
             if (letter === currentDisplayedLetter) {
-                // Bonne réponse
                 correctLetters++;
                 clickedKey.classList.add('validated');
                 letterEl.style.opacity = '0';
 
-                // Mettre à jour la taille minimale réussie
                 if (letterSizePx < minSuccessfulLetterSize) {
                     minSuccessfulLetterSize = letterSizePx;
                 }
 
-                // Réduire la taille de la lettre
                 letterSizePx = Math.max(20, letterSizePx - 5);
             } else {
-                // Mauvaise réponse
                 clickedKey.classList.add('invalid');
                 letterSizePx = Math.min(300, letterSizePx + 5);
             }
@@ -302,10 +294,10 @@
     // --- MISE À JOUR DU SCORE ---
     function updateScore() {
         if (totalLetters === 0) {
-            scoreDisplay.innerHTML = `Score: -- | Plus petite lettre réussie: -- px`;
+            scoreDisplay.innerHTML = `Score: -- | Plus petite lettre: -- px`;
         } else {
             const successRate = Math.round((correctLetters / totalLetters) * 100);
-            scoreDisplay.innerHTML = `Score: ${successRate}% (${correctLetters}/${totalLetters}) | Plus petite lettre réussie: ${minSuccessfulLetterSize} px`;
+            scoreDisplay.innerHTML = `Score: ${successRate}% (${correctLetters}/${totalLetters}) | Plus petite lettre: ${minSuccessfulLetterSize === Infinity ? '--' : minSuccessfulLetterSize} px`;
         }
     }
 
