@@ -32,7 +32,8 @@
         .speed-bar {
             height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #ff0, #f00);
             transition: width 0.1s linear;
-        }button {
+        }
+        button {
             background: #4ecdc4; border: none; padding: 10px; border-radius: 5px;
             cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px;
         }
@@ -51,6 +52,7 @@
             display: flex; justify-content: center; align-items: center; width: 12mm;
         }
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
+        /* Contrôle pour la taille des lettres */
         #letterSizeControl {
             position: absolute; top: 10px; right: 10px; z-index: 20;
             background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
@@ -79,6 +81,7 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
+        /* Clavier virtuel - CORRIGÉ pour 2 lignes */
         #keyboard {
             position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
@@ -116,7 +119,7 @@
 </head>
 <body><div id="startOverlay">
         <h1>Test Acuité (Pro)</h1>
-        <p>Détection de vitesse optimisée.</p>
+        <p>Détection de vitesse optimisée avec adaptation dynamique.</p>
         <button onclick="startApp()">DÉMARRER</button>
         <p id="errorMsg" class="error"></p>
     </div>
@@ -151,19 +154,23 @@
         </div>
     </div>
 
+    <!-- Contrôle pour la taille des lettres -->
     <div id="letterSizeControl" style="display:none;">
         <div id="letterSizeLabel">Taille lettre (px)</div>
         <div id="letterSizeValue">80</div>
         <div class="size-control-buttons">
-            <button class="size-btn secondary" onclick="adjustLetterSize(-5)">-</button>
+            <button class="size-btn secondary" onclick="adjustLetterSize(-10)">-</button>
             <input type="number" id="letterSizeInput" min="20" max="300" value="80" onchange="updateLetterSizeFromInput()">
-            <button class="size-btn secondary" onclick="adjustLetterSize(5)">+</button>
+            <button class="size-btn secondary" onclick="adjustLetterSize(10)">+</button>
         </div>
     </div>
 
+    <!-- Clavier virtuel -->
     <div id="keyboard" style="display:none;">
+        <!-- Les touches seront générées par JavaScript -->
     </div>
 
+    <!-- Message d'attente -->
     <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div><script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
@@ -197,9 +204,10 @@
         let currentDisplayedLetter = null;
         let flashTimeout = null;
 
-        // Gestion des erreurs et taille des lettres
-        let errorCount = 0;
-        let currentLetterSize = 80;
+        // Variables pour le suivi des erreurs
+        let consecutiveErrors = 0;
+        let lastValidatedLetter = null;
+        let attemptsForCurrentLetter = 0;
 
         // Liste des lettres (valeur fixe)
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
@@ -240,68 +248,71 @@
 
             if (clickedKey) {
                 if (letter === currentDisplayedLetter) {
-                    // BONNE RÉPONSE
+                    // SUCCÈS
                     clickedKey.classList.add('validated');
-                    letterEl.style.opacity = '0';
-
-                    // Réinitialiser le compteur d'erreurs
-                    errorCount = 0;
-
-                    // Diminuer la taille de la prochaine lettre de 5px
-                    currentLetterSize = Math.max(20, currentLetterSize - 5);
-                    letterSizePx = currentLetterSize;
-
+                    letterEl.style.opacity = '0'; // Faire disparaître immédiatement
                     state = 'IDLE';
+
+                    // Réinitialiser les erreurs consécutives
+                    consecutiveErrors = 0;
+
+                    // Ajuster la taille selon le nombre d'essais
+                    if (attemptsForCurrentLetter === 0) {
+                        // Succès du premier coup
+                        letterSizePx = Math.max(20, letterSizePx - 5);
+                    }
+                    // Sinon (1 ou 2 erreurs avant succès), la taille reste inchangée
+
                     waitingMessage.style.display = 'none';
+                    updateLetterDisplay();
                     updateStats();
+
+                    // Préparer pour la prochaine lettre
+                    lastValidatedLetter = letter;
+                    attemptsForCurrentLetter = 0;
+                    displayNewLetter();
                 } else {
-                    // MAUVAISE RÉPONSE
+                    // ÉCHEC
                     clickedKey.classList.add('invalid');
-                    errorCount++;
+                    consecutiveErrors++;
 
-                    // La lettre disparaît immédiatement
-                    letterEl.style.opacity = '0';
-
-                    if (errorCount >= 3) {
-                        // 3ème erreur → augmenter la taille de la prochaine lettre de 5px
-                        currentLetterSize = Math.min(300, currentLetterSize + 5);
-                        letterSizePx = currentLetterSize;
-                        errorCount = 0; // Réinitialiser le compteur
+                    // Incrémenter le compteur d'essais pour la lettre actuelle
+                    if (letter !== lastValidatedLetter) {
+                        attemptsForCurrentLetter++;
                     }
 
-                    state = 'IDLE';
-                    waitingMessage.style.display = 'none';
+                    // Si 3 erreurs consécutives sur des lettres différentes
+                    if (consecutiveErrors >= 3) {
+                        letterSizePx = Math.min(300, letterSizePx + 5);
+                        consecutiveErrors = 0;
+                        lastValidatedLetter = null;
+                        attemptsForCurrentLetter = 0;
+                        updateLetterDisplay();
+                        updateStats();
+                    }
+
+                    // On reste en WAITING_VALIDATION pour permettre une nouvelle tentative
                 }
             }
         }
 
         // --- AFFICHAGE D'UNE NOUVELLE LETTRE ---
         function displayNewLetter() {
-            if (state !== 'IDLE') return;
-
-            // Réinitialiser le compteur d'erreurs à chaque nouvelle lettre
-            errorCount = 0;
-
-            // Choisir une lettre aléatoire
-            const randomIndex = Math.floor(Math.random() * letters.length);
-            currentDisplayedLetter = letters[randomIndex];
-
-            // Afficher la lettre
-            letterEl.textContent = currentDisplayedLetter;
-            letterEl.style.fontSize = currentLetterSize + 'px';
+            state = 'WAITING_VALIDATION';
+            currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
+            letterEl.innerText = currentDisplayedLetter;
+            letterEl.style.fontSize = letterSizePx + 'px';
             letterEl.style.opacity = '1';
 
-            state = 'WAITING_VALIDATION';
             waitingMessage.style.display = 'block';
 
-            // Disparaître automatiquement après 5 secondes si pas de validation
+            // Disparaît automatiquement après 60ms
             flashTimeout = setTimeout(() => {
                 if (state === 'WAITING_VALIDATION') {
                     letterEl.style.opacity = '0';
-                    state = 'IDLE';
-                    waitingMessage.style.display = 'none';
+                    // On reste en WAITING_VALIDATION jusqu'à validation
                 }
-            }, 5000);
+            }, 60);
         }
 
         // --- CALIBRATION ---
@@ -332,7 +343,6 @@
             const newSize = parseInt(letterSizeInputEl.value);
             if (!isNaN(newSize) && newSize >= 20 && newSize <= 300) {
                 letterSizePx = newSize;
-                currentLetterSize = newSize;
                 updateAcuityFromSize();
                 updateLetterDisplay();
                 updateStats();
@@ -342,7 +352,6 @@
 
         function adjustLetterSize(delta) {
             letterSizePx = Math.max(20, Math.min(300, letterSizePx + delta));
-            currentLetterSize = letterSizePx;
             letterSizeInputEl.value = letterSizePx;
             updateAcuityFromSize();
             updateLetterDisplay();
@@ -414,29 +423,32 @@
                     let calculatedDist = K_FACTOR / distInterYeuxPx;
                     rawDistance = calculatedDist;
                     distance = (distance * 0.9) + (rawDistance * 0.1);
+                    distance = Math.max(30, Math.min(120, distance));
                 }
 
                 // 2. VITESSE
-                const now = Date.now();
-                if (lastHeadPos && now - lastTime > 100) {
-                    const dx = nose[0] - lastHeadPos[0];
-                    const dy = nose[1] - lastHeadPos[1];
-                    const dt = (now - lastTime) / 1000;
-                    speed = Math.sqrt(dx*dx + dy*dy) / dt;
-                    smoothedSpeed = (smoothedSpeed * 0.9) + (speed * 0.1);
-                    lastTime = now;
+                const now = performance.now();
+                if (lastHeadPos) {
+                    const dt = (now - lastTime);
+                    if (dt > 16) {
+                        const dx = nose[0] - lastHeadPos.x;
+                        const dy = nose[1] - lastHeadPos.y;
+                        const distPx = Math.sqrt(dx*dx + dy*dy);
+                        let rawSpeed = distPx / dt;
+                        smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
+                        speed = smoothedSpeed * 1000;
+                    }
                 }
-                lastHeadPos = [...nose];
+                lastHeadPos = { x: nose[0], y: nose[1] };
+                lastTime = now;
 
-                // 3. AFFICHAGE
                 updateStats();
 
-                // Afficher une nouvelle lettre si on est en IDLE
-                if (state === 'IDLE' && smoothedSpeed < 50) {
-                    displayNewLetter();
-                }
+            } else {
+                smoothedSpeed = smoothedSpeed * 0.9;
+                speed = smoothedSpeed * 1000;
+                updateStats();
             }
-
             requestAnimationFrame(loop);
         }
 
@@ -451,7 +463,6 @@
             acuity = parseFloat(document.getElementById('acuity').value);
             document.getElementById('valAcuity').innerText = acuity.toFixed(1);
             letterSizePx = Math.round(calculateSize(distance, acuity));
-            currentLetterSize = letterSizePx;
             updateLetterDisplay();
             letterSizeInputEl.value = letterSizePx;
         }
