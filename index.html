@@ -52,7 +52,6 @@
             display: flex; justify-content: center; align-items: center; width: 12mm;
         }
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
-        /* Contrôle pour la taille des lettres */
         #letterSizeControl {
             position: absolute; top: 10px; right: 10px; z-index: 20;
             background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
@@ -83,7 +82,7 @@
         }
         /* Clavier virtuel */
         #keyboard {
-            position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+            position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
             display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
             width: 90%; max-width: 550px;
@@ -99,10 +98,10 @@
             transform: scale(1.1);
         }
         .key.validated {
-            background: #28a745;
+            background: #28a745; /* Vert Bootstrap */
         }
         .key.invalid {
-            background: #dc3545;
+            background: #dc3545; /* Rouge Bootstrap */
         }
         /* Message "Début" */
         #startMessage {
@@ -115,33 +114,40 @@
         }
         /* Score */
         #scoreDisplay {
-            position: fixed;
-            bottom: 100px;  /* Juste en dessous du clavier (90px + 10px de marge) */
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 30;
-            background: rgba(0,0,0,0.8);
-            padding: 8px 15px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 14px;
-            text-align: center;
-            width: 90%;
-            max-width: 550px;
+            position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+            z-index: 30; background: rgba(0,0,0,0.8); padding: 10px 15px;
+            border-radius: 8px; font-family: monospace; font-size: 14px;
+            text-align: center; width: 90%; max-width: 550px;
         }
-        /* Message d'attente */
-        #waitingMessage {
-            display: none;
-            position: absolute;
-            bottom: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 30;
-            background: rgba(0,0,0,0.8);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            text-align: center;
+        /* Bouton FIN */
+        #finishButton {
+            background: #ffc107; color: #000; font-weight: bold;
+        }
+        #finishButton:hover {
+            background: #ffd54f;
+        }
+        /* Overlay de fin */
+        #finalStatsOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 200; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px; text-align: center;
+        }
+        .final-stat-box {
+            background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px;
+            margin: 10px; width: 90%; max-width: 400px;
+        }
+        .final-stat-title {
+            font-size: 18px; margin-bottom: 15px; color: #4ecdc4;
+        }
+        .final-stat-item {
+            font-size: 16px; margin: 8px 0; color: white;
+        }
+        .final-stat-value {
+            font-weight: bold; color: #28a745;
+        }
+        #restartButton {
+            background: #28a745; margin-top: 20px;
         }
     </style>
 </head>
@@ -181,6 +187,8 @@
             <input type="range" id="calibSlider" min="0.5" max="2.0" step="0.05" value="1.0" oninput="updateCalib()" style="width:100%;">
             <button onclick="saveCalib()" style="background:#28a745; margin-top:5px;">Sauvegarder</button>
         </div>
+
+        <button id="finishButton" onclick="showFinalStats()">FIN</button>
     </div>
 
     <!-- Contrôle pour la taille des lettres -->
@@ -199,12 +207,38 @@
         <!-- Les touches seront générées par JavaScript -->
     </div>
 
-    <!-- Message d'attente -->
-    <div id="waitingMessage">⏳ Validez la lettre affichée pour continuer</div>
-
     <!-- Score -->
     <div id="scoreDisplay">Score: -- | Plus petite lettre réussie: -- px</div>
 
+    <!-- Message d'attente -->
+    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
+
+    <!-- Overlay de fin -->
+    <div id="finalStatsOverlay">
+        <h2 class="final-stat-title">Statistiques Finales</h2>
+        <div class="final-stat-box">
+            <div class="final-stat-item">Taux global de réussite: <span class="final-stat-value" id="globalSuccessRate">--%</span></div>
+            <div class="final-stat-item">Mouvements vers la <strong>droite</strong>: <span class="final-stat-value" id="rightCount">0</span> mouvements</div>
+            <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="rightSuccessRate">--%</span></div>
+            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="rightMinSize">-- px</span></div>
+        </div>
+        <div class="final-stat-box">
+            <div class="final-stat-item">Mouvements vers la <strong>gauche</strong>: <span class="final-stat-value" id="leftCount">0</span> mouvements</div>
+            <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="leftSuccessRate">--%</span></div>
+            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="leftMinSize">-- px</span></div>
+        </div>
+        <div class="final-stat-box">
+            <div class="final-stat-item">Mouvements vers le <strong>haut</strong>: <span class="final-stat-value" id="upCount">0</span> mouvements</div>
+            <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="upSuccessRate">--%</span></div>
+            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="upMinSize">-- px</span></div>
+        </div>
+        <div class="final-stat-box">
+            <div class="final-stat-item">Mouvements vers le <strong>bas</strong>: <span class="final-stat-value" id="downCount">0</span> mouvements</div>
+            <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="downSuccessRate">--%</span></div>
+            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="downMinSize">-- px</span></div>
+        </div>
+        <button id="restartButton" onclick="restartTest()">Recommencer</button>
+    </div>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
@@ -221,6 +255,7 @@
     let keyboard = document.getElementById('keyboard');
     let waitingMessage = document.getElementById('waitingMessage');
     let scoreDisplay = document.getElementById('scoreDisplay');
+    let finalStatsOverlay = document.getElementById('finalStatsOverlay');
 
     // Paramètres
     let acuity = 1.0;
@@ -228,10 +263,33 @@
     let calibrationFactor = 1.0;
     let letterSizePx = 80;
 
-    // Statistiques
+    // Tracking
+    let lastHeadPos = null;
+    let lastTime = 0;
+    let speed = 0;
+    let smoothedSpeed = 0;
+    let distance = 50;
+    let rawDistance = 50;
+    let state = 'IDLE'; // IDLE, WAITING_VALIDATION
+    let lastFlashTime = 0;
+    let currentDisplayedLetter = null;
+    let flashTimeout = null;
+
+    // Statistiques générales
     let totalLetters = 0;
     let correctLetters = 0;
     let minSuccessfulLetterSize = Infinity;
+
+    // Statistiques par direction
+    let movements = {
+        right: { count: 0, correct: 0, minSize: Infinity },
+        left: { count: 0, correct: 0, minSize: Infinity },
+        up: { count: 0, correct: 0, minSize: Infinity },
+        down: { count: 0, correct: 0, minSize: Infinity }
+    };
+
+    // Direction du dernier mouvement détecté
+    let lastMovementDirection = null;
 
     // Liste des lettres
     const letters = "D F P V A N L C O E R U S Z H".split(" ");
@@ -254,6 +312,7 @@
     function validateLetter(letter) {
         if (state !== 'WAITING_VALIDATION') return;
 
+        // Effacer le timeout de disparition automatique
         if (flashTimeout) {
             clearTimeout(flashTimeout);
             flashTimeout = null;
@@ -267,38 +326,130 @@
         if (clickedKey) {
             totalLetters++;
             if (letter === currentDisplayedLetter) {
+                // Bonne réponse
                 correctLetters++;
                 clickedKey.classList.add('validated');
                 letterEl.style.opacity = '0';
+                letterSizePx = Math.max(20, letterSizePx - 5);
 
                 if (letterSizePx < minSuccessfulLetterSize) {
                     minSuccessfulLetterSize = letterSizePx;
                 }
 
-                letterSizePx = Math.max(20, letterSizePx - 5);
+                // Mettre à jour la taille minimale pour la direction du dernier mouvement
+                if (lastMovementDirection && movements[lastMovementDirection]) {
+                    if (letterSizePx < movements[lastMovementDirection].minSize) {
+                        movements[lastMovementDirection].minSize = letterSizePx;
+                    }
+                }
+
             } else {
+                // Mauvaise réponse
                 clickedKey.classList.add('invalid');
                 letterSizePx = Math.min(300, letterSizePx + 5);
             }
 
+            updateScore();
             updateAcuityFromSize();
             updateLetterDisplay();
             updateStats();
-            updateScore();
 
             state = 'IDLE';
             waitingMessage.style.display = 'none';
+            waitingMessage.textContent = "Faites un mouvement de tête pour continuer";
+            waitingMessage.style.display = 'block';
         }
     }
 
-    // --- MISE À JOUR DU SCORE ---
+    // --- MISE À JOUR DU SCORE GLOBAL ---
     function updateScore() {
         if (totalLetters === 0) {
-            scoreDisplay.innerHTML = `Score: -- | Plus petite lettre: -- px`;
+            scoreDisplay.innerHTML = `Score: -- | Plus petite lettre réussie: -- px`;
         } else {
             const successRate = Math.round((correctLetters / totalLetters) * 100);
-            scoreDisplay.innerHTML = `Score: ${successRate}% (${correctLetters}/${totalLetters}) | Plus petite lettre: ${minSuccessfulLetterSize === Infinity ? '--' : minSuccessfulLetterSize} px`;
+            scoreDisplay.innerHTML = `Score: ${successRate}% (${correctLetters}/${totalLetters}) | Plus petite lettre réussie: ${minSuccessfulLetterSize} px`;
         }
+    }
+
+    // --- MISE À JOUR DES STATISTIQUES PAR DIRECTION ---
+    function updateMovementStats(direction, isCorrect) {
+        movements[direction].count++;
+        if (isCorrect) {
+            movements[direction].correct++;
+        }
+        lastMovementDirection = direction;
+    }
+
+    // --- AFFICHAGE DES STATISTIQUES FINALES ---
+    function showFinalStats() {
+        if (totalLetters === 0) {
+            alert("Aucun test n'a été effectué. Faites au moins un mouvement pour voir les statistiques.");
+            return;
+        }
+
+        const globalSuccessRate = Math.round((correctLetters / totalLetters) * 100);
+
+        // Mettre à jour les valeurs dans l'overlay
+        document.getElementById('globalSuccessRate').textContent = `${globalSuccessRate}%`;
+
+        // Droite
+        document.getElementById('rightCount').textContent = movements.right.count;
+        document.getElementById('rightSuccessRate').textContent = movements.right.count > 0 ?
+            `${Math.round((movements.right.correct / movements.right.count) * 100)}%` : '--%';
+        document.getElementById('rightMinSize').textContent = movements.right.minSize !== Infinity ?
+            `${movements.right.minSize} px` : '-- px';
+
+        // Gauche
+        document.getElementById('leftCount').textContent = movements.left.count;
+        document.getElementById('leftSuccessRate').textContent = movements.left.count > 0 ?
+            `${Math.round((movements.left.correct / movements.left.count) * 100)}%` : '--%';
+        document.getElementById('leftMinSize').textContent = movements.left.minSize !== Infinity ?
+            `${movements.left.minSize} px` : '-- px';
+
+        // Haut
+        document.getElementById('upCount').textContent = movements.up.count;
+        document.getElementById('upSuccessRate').textContent = movements.up.count > 0 ?
+            `${Math.round((movements.up.correct / movements.up.count) * 100)}%` : '--%';
+        document.getElementById('upMinSize').textContent = movements.up.minSize !== Infinity ?
+            `${movements.up.minSize} px` : '-- px';
+
+        // Bas
+        document.getElementById('downCount').textContent = movements.down.count;
+        document.getElementById('downSuccessRate').textContent = movements.down.count > 0 ?
+            `${Math.round((movements.down.correct / movements.down.count) * 100)}%` : '--%';
+        document.getElementById('downMinSize').textContent = movements.down.minSize !== Infinity ?
+            `${movements.down.minSize} px` : '-- px';
+
+        // Afficher l'overlay
+        finalStatsOverlay.style.display = 'flex';
+    }
+
+    // --- RECOMMENCER LE TEST ---
+    function restartTest() {
+        // Réinitialiser toutes les statistiques
+        totalLetters = 0;
+        correctLetters = 0;
+        minSuccessfulLetterSize = Infinity;
+        movements = {
+            right: { count: 0, correct: 0, minSize: Infinity },
+            left: { count: 0, correct: 0, minSize: Infinity },
+            up: { count: 0, correct: 0, minSize: Infinity },
+            down: { count: 0, correct: 0, minSize: Infinity }
+        };
+        lastMovementDirection = null;
+
+        // Réinitialiser l'affichage
+        updateScore();
+        scoreDisplay.innerHTML = `Score: -- | Plus petite lettre réussie: -- px`;
+
+        // Cacher l'overlay
+        finalStatsOverlay.style.display = 'none';
+
+        // Réinitialiser la taille des lettres
+        letterSizePx = 80;
+        updateAcuityFromSize();
+        updateLetterDisplay();
+        updateStats();
     }
 
     // --- CALIBRATION ---
@@ -346,7 +497,7 @@
 
     function updateAcuityFromSize() {
         acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx);
-        acuity = Math.max(0.1, Math.min(2.0, acuity));
+        acuity = Math.max(0.1, Math.min(2.0, acuity);
         document.getElementById('acuity').value = acuity.toFixed(1);
         document.getElementById('valAcuity').innerText = acuity.toFixed(1);
     }
@@ -430,6 +581,9 @@
             lastHeadPos = { x: nose[0], y: nose[1] };
             lastTime = now;
 
+            // 3. DÉTECTION DE LA DIRECTION
+            detectDirection(nose, lastHeadPos);
+
             handleState(speed, now);
             updateStats();
 
@@ -441,7 +595,36 @@
         requestAnimationFrame(loop);
     }
 
-    // --- MACHINE D'ÉTAT ---
+    // --- DÉTECTION DE LA DIRECTION DU MOUVEMENT ---
+    function detectDirection(currentPos, lastPos) {
+        if (!lastPos) return;
+
+        const dx = currentPos.x - lastPos.x;
+        const dy = currentPos.y - lastPos.y;
+
+        // Seuil pour considérer un mouvement significatif
+        const threshold = 10;
+
+        if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+            if (Math.abs(dx) > Math.abs(dy)) {
+                // Mouvement horizontal dominant
+                if (dx > 0) {
+                    updateMovementStats('right', false);
+                } else {
+                    updateMovementStats('left', false);
+                }
+            } else {
+                // Mouvement vertical dominant
+                if (dy > 0) {
+                    updateMovementStats('down', false);
+                } else {
+                    updateMovementStats('up', false);
+                }
+            }
+        }
+    }
+
+    // --- MACHINE D'ÉTAT (avec comptage des mouvements par direction) ---
     function handleState(currentSpeed, now) {
         const minSpeedTrigger = 150;
         const flashDuration = 60;
@@ -455,6 +638,7 @@
                 letterEl.innerText = currentDisplayedLetter;
                 letterEl.style.opacity = '1';
 
+                waitingMessage.textContent = "⏳ Validez la lettre affichée pour continuer";
                 waitingMessage.style.display = 'block';
 
                 flashTimeout = setTimeout(() => {
