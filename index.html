@@ -24,14 +24,15 @@
         }
         .stat { font-size: 12px; margin: 2px 0; color: #0f0; font-family: monospace; }
         .error { color: #f55; }
+
+        /* Jauge de vitesse */
         .speed-gauge {
             height: 6px; background: #333; margin-top: 5px; border-radius: 3px; overflow: hidden;
         }
         .speed-bar {
             height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #ff0, #f00);
             transition: width 0.1s linear;
-        }
-        button {
+        }button {
             background: #4ecdc4; border: none; padding: 10px; border-radius: 5px;
             cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px;
         }
@@ -50,6 +51,7 @@
             display: flex; justify-content: center; align-items: center; width: 12mm;
         }
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
+        /* Contrôle pour la taille des lettres */
         #letterSizeControl {
             position: absolute; top: 10px; right: 10px; z-index: 20;
             background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
@@ -78,6 +80,7 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
+        /* Clavier virtuel - CORRIGÉ pour 2 lignes */
         #keyboard {
             position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
@@ -97,10 +100,6 @@
         .key.validated {
             background: #28a745;
         }
-        .key.invalid {
-            background: #dc3545;
-            cursor: not-allowed;
-        }
         #waitingMessage {
             position: fixed; bottom: 10px; left: 50%;
             transform: translateX(-50%);
@@ -113,15 +112,15 @@
         }
     </style>
 </head>
-<body>
-    <div id="startOverlay">
+<body><div id="startOverlay">
         <h1>Test Acuité (Pro)</h1>
         <p>Détection de vitesse optimisée.</p>
         <button onclick="startApp()">DÉMARRER</button>
         <p id="errorMsg" class="error"></p>
     </div>
+
     <video id="video" playsinline autoplay muted></video>
-    <div id="letterDisplay"></div>
+    <div id="letterDisplay">A</div>
 
     <div id="ui" style="display:none;">
         <div class="stat" id="statusInit">Initialisation...</div>
@@ -149,6 +148,8 @@
             <button onclick="saveCalib()" style="background:#28a745; margin-top:5px;">Sauvegarder</button>
         </div>
     </div>
+
+    <!-- Contrôle pour la taille des lettres -->
     <div id="letterSizeControl" style="display:none;">
         <div id="letterSizeLabel">Taille lettre (px)</div>
         <div id="letterSizeValue">80</div>
@@ -159,14 +160,15 @@
         </div>
     </div>
 
+    <!-- Clavier virtuel -->
     <div id="keyboard" style="display:none;">
         <!-- Les touches seront générées par JavaScript -->
     </div>
 
-    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
-
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+    <!-- Message d'attente -->
+    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div><script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
+
     <script>
         let model = null;
         let video = document.getElementById('video');
@@ -196,15 +198,16 @@
         let lastFlashTime = 0;
         let currentDisplayedLetter = null;
         let flashTimeout = null;
-        let letterChanged = false;
 
-        // Liste des lettres
+        // Liste des lettres (valeur fixe)
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
 
-        // INITIALISATION DU CLAVIER
+        // --- INITIALISATION DU CLAVIER ---
         function initKeyboard() {
             keyboard.innerHTML = '';
-            [...letters].sort().forEach(letter => {
+            const lettersSorted = [...letters].sort();
+
+            lettersSorted.forEach(letter => {
                 const key = document.createElement('button');
                 key.className = 'key';
                 key.textContent = letter;
@@ -213,39 +216,76 @@
             });
         }
 
-        // VALIDATION D'UNE LETTRE
+        // --- VALIDATION D'UNE LETTRE (MODIFIÉE) ---
         function validateLetter(letter) {
             if (state !== 'WAITING_VALIDATION') return;
 
+            // Effacer le timeout de disparition automatique
             if (flashTimeout) {
                 clearTimeout(flashTimeout);
                 flashTimeout = null;
             }
 
             const keys = document.querySelectorAll('.key');
-            keys.forEach(k => k.classList.remove('validated', 'invalid'));
 
+            // Réinitialiser tous les styles
+            keys.forEach(k => {
+                k.classList.remove('validated');
+            });
+
+            // Trouver la touche cliquée
             const clickedKey = Array.from(keys).find(k => k.textContent === letter);
+
             if (clickedKey) {
                 if (letter === currentDisplayedLetter) {
-                    letterSizePx = Math.max(20, letterSizePx - 5);
                     clickedKey.classList.add('validated');
-                } else {
-                    letterSizePx = Math.min(300, letterSizePx + 5);
-                    clickedKey.classList.add('invalid');
-                }
+                    letterEl.style.opacity = '0'; // Faire disparaître immédiatement
 
-                updateAcuityFromSize();
-                updateLetterDisplay();
-                updateStats();
-                letterEl.style.opacity = '0';
-                state = 'IDLE';
-                waitingMessage.style.display = 'none';
-                letterChanged = true;
+                    // Réduire la taille de la lettre suivante de 5px après validation réussie
+                    letterSizePx = Math.max(20, letterSizePx - 5);
+                    letterSizeInputEl.value = letterSizePx;
+                    letterSizeValueEl.innerText = letterSizePx;
+
+                    updateAcuityFromSize();
+                    updateLetterDisplay();
+                    updateStats();
+
+                    state = 'IDLE';
+                    waitingMessage.style.display = 'none';
+                } else {
+                    // MODIFICATION : Suppression de l'affichage de la touche invalidée
+                    // clickedKey.classList.add('invalid'); // <-- Cette ligne a été supprimée
+
+                    // Augmenter la taille de la lettre de 5px après une erreur
+                    letterSizePx = Math.min(300, letterSizePx + 5);
+                    letterSizeInputEl.value = letterSizePx;
+                    letterSizeValueEl.innerText = letterSizePx;
+
+                    updateAcuityFromSize();
+                    updateLetterDisplay();
+                    updateStats();
+
+                    // Remettre à IDLE pour permettre une nouvelle tentative
+                    state = 'IDLE';
+                    waitingMessage.style.display = 'none';
+
+                    // Afficher immédiatement une nouvelle lettre
+                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
+                    letterEl.innerText = currentDisplayedLetter;
+                    letterEl.style.opacity = '1';
+                    waitingMessage.style.display = 'block';
+
+                    // Disparaît automatiquement après 60ms
+                    flashTimeout = setTimeout(() => {
+                        if (state === 'WAITING_VALIDATION') {
+                            letterEl.style.opacity = '0';
+                        }
+                    }, 60);
+                }
             }
         }
 
-        // CALIBRATION
+        // --- CALIBRATION ---
         function toggleCalib() {
             const panel = document.getElementById('calibPanel');
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -268,7 +308,7 @@
             }
         }
 
-        // GESTION DE LA TAILLE DES LETTRES
+        // --- GESTION DE LA TAILLE DES LETTRES ---
         function updateLetterSizeFromInput() {
             const newSize = parseInt(letterSizeInputEl.value);
             if (!isNaN(newSize) && newSize >= 20 && newSize <= 300) {
@@ -297,9 +337,10 @@
 
         function updateLetterDisplay() {
             letterSizeValueEl.innerText = letterSizePx;
+            letterEl.style.fontSize = letterSizePx + 'px';
         }
 
-        // DÉMARRAGE
+        // --- DÉMARRAGE ---
         async function startApp() {
             loadCalib();
             initKeyboard();
@@ -330,7 +371,7 @@
             }
         }
 
-        // BOUCLE PRINCIPALE
+        // --- BOUCLE PRINCIPALE ---
         async function loop() {
             if (!model) return;
 
@@ -342,7 +383,7 @@
                 const leftEye = face.landmarks[0];
                 const rightEye = face.landmarks[1];
 
-                // DISTANCE
+                // 1. DISTANCE
                 const distInterYeuxPx = Math.sqrt(
                     Math.pow(rightEye[0] - leftEye[0], 2) +
                     Math.pow(rightEye[1] - leftEye[1], 2)
@@ -355,7 +396,7 @@
                     distance = Math.max(30, Math.min(120, distance));
                 }
 
-                // VITESSE
+                // 2. VITESSE
                 const now = performance.now();
                 if (lastHeadPos) {
                     const dt = (now - lastTime);
@@ -373,6 +414,7 @@
 
                 handleState(speed, now);
                 updateStats();
+
             } else {
                 smoothedSpeed = smoothedSpeed * 0.9;
                 speed = smoothedSpeed * 1000;
@@ -381,37 +423,35 @@
             requestAnimationFrame(loop);
         }
 
-        // MACHINE D'ÉTAT
+        // --- MACHINE D'ÉTAT MODIFIÉE ---
         function handleState(currentSpeed, now) {
             const minSpeedTrigger = 150;
-            const flashDuration = 60;
+            const flashDuration = 60; // Valeur fixe à 60ms
             const cooldownDuration = 1000;
 
             if (state === 'IDLE') {
                 if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
                     state = 'WAITING_VALIDATION';
                     lastFlashTime = now;
-
-                    if (letterChanged) {
-                        currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-                        letterChanged = false;
-                    }
-
+                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
                     letterEl.innerText = currentDisplayedLetter;
-                    letterEl.style.fontSize = letterSizePx + 'px';
                     letterEl.style.opacity = '1';
+
                     waitingMessage.style.display = 'block';
 
+                    // Disparaît automatiquement après 60ms
                     flashTimeout = setTimeout(() => {
                         if (state === 'WAITING_VALIDATION') {
                             letterEl.style.opacity = '0';
+                            // On reste en WAITING_VALIDATION jusqu'à validation
                         }
                     }, flashDuration);
                 }
             }
+            // Dans l'état WAITING_VALIDATION, on ignore les mouvements de tête
         }
 
-        // CALCUL TAILLE OPTIQUE
+        // --- CALCUL TAILLE OPTIQUE ---
         function calculateSize(distCm, acuityDecimal) {
             let heightCm = (distCm * 0.0145) / acuityDecimal;
             let heightPx = (heightCm / 2.54) * screenDPI;
