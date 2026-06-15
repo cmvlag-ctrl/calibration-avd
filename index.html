@@ -99,7 +99,16 @@
             transform: scale(1.1);
         }
         .key.validated {
-            background: #28a745;
+            background: #28a745; /* Vert Bootstrap */
+        }
+        .key.invalid {
+            background: #dc3545; /* Rouge Bootstrap */
+            animation: shake 0.3s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
         }
         #waitingMessage {
             position: fixed; bottom: 10px; left: 50%;
@@ -232,7 +241,7 @@
 
         // Réinitialiser tous les styles
         keys.forEach(k => {
-            k.classList.remove('validated');
+            k.classList.remove('validated', 'invalid');
         });
 
         // Trouver la touche cliquée
@@ -240,43 +249,25 @@
 
         if (clickedKey) {
             if (letter === currentDisplayedLetter) {
+                // ✅ Bonne réponse → Vert
                 clickedKey.classList.add('validated');
-                letterEl.style.opacity = '0'; // Faire disparaître immédiatement
-
-                // Réduire la taille de la lettre suivante de 5px après validation réussie
+                letterEl.style.opacity = '0';
                 letterSizePx = Math.max(20, letterSizePx - 5);
-                letterSizeInputEl.value = letterSizePx;
-                letterSizeValueEl.innerText = letterSizePx;
-
-                updateAcuityFromSize();
-                updateLetterDisplay();
-                updateStats();
-
-                state = 'IDLE';
-                waitingMessage.style.display = 'none';
-
-                // ➡️ MODIFICATION : On n'affiche PAS une nouvelle lettre tout de suite
-                // On attend que l'utilisateur fasse un mouvement de tête
-                waitingMessage.textContent = "Faites un mouvement de tête pour continuer";
-                waitingMessage.style.display = 'block';
             } else {
-                // Augmenter la taille de la lettre de 5px après une erreur
+                // ❌ Mauvaise réponse → Rouge + effet
+                clickedKey.classList.add('invalid');
                 letterSizePx = Math.min(300, letterSizePx + 5);
-                letterSizeInputEl.value = letterSizePx;
-                letterSizeValueEl.innerText = letterSizePx;
-
-                updateAcuityFromSize();
-                updateLetterDisplay();
-                updateStats();
-
-                // Remettre à IDLE pour permettre une nouvelle tentative
-                state = 'IDLE';
-                waitingMessage.style.display = 'none';
-
-                // ➡️ MODIFICATION : On n'affiche PAS une nouvelle lettre tout de suite
-                waitingMessage.textContent = "Faites un mouvement de tête pour continuer";
-                waitingMessage.style.display = 'block';
             }
+
+            updateAcuityFromSize();
+            updateLetterDisplay();
+            updateStats();
+
+            state = 'IDLE';
+            waitingMessage.style.display = 'none';
+
+            waitingMessage.textContent = "Faites un mouvement de tête pour continuer";
+            waitingMessage.style.display = 'block';
         }
     }
 
