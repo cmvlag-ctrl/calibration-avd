@@ -6,12 +6,10 @@
     <title>Test AV - Détection Avancée avec Clavier</title>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
-
         video {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover; opacity: 0.2; z-index: 1; transform: scaleX(-1);
         }
-
         #letterDisplay {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
@@ -19,13 +17,11 @@
             opacity: 0; z-index: 10; pointer-events: none;
             text-shadow: 0 0 10px black;
         }
-
         #ui {
             position: absolute; top: 10px; left: 10px; z-index: 20;
             background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
             max-width: 300px;
         }
-
         .stat { font-size: 12px; margin: 2px 0; color: #0f0; font-family: monospace; }
         .error { color: #f55; }
 
@@ -33,7 +29,6 @@
         .speed-gauge {
             height: 6px; background: #333; margin-top: 5px; border-radius: 3px; overflow: hidden;
         }
-
         .speed-bar {
             height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #ff0, #f00);
             transition: width 0.1s linear;
@@ -43,25 +38,20 @@
             background: #4ecdc4; border: none; padding: 10px; border-radius: 5px;
             cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px;
         }
-
         button.secondary { background: #555; color: white; }
-
         #startOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 100; display: flex; flex-direction: column;
             align-items: center; justify-content: center; text-align: center; padding: 20px;
         }
-
         #calibPanel {
             display: none; margin-top: 10px; padding-top: 10px;
             border-top: 1px solid #444; text-align: center;
         }
-
         .calib-bar-container {
             height: 20px; border: 1px dashed #666; margin: 10px auto;
             display: flex; justify-content: center; align-items: center; width: 12mm;
         }
-
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
 
         /* Contrôle pour la taille des lettres */
@@ -71,93 +61,57 @@
             width: 120px;
             text-align: center;
         }
-
         #letterSizeLabel {
             font-size: 11px; margin-bottom: 5px;
         }
-
         #letterSizeValue {
             font-size: 16px; font-weight: bold; margin: 5px 0;
             color: #4ecdc4;
         }
-
         .size-control-buttons {
             display: flex; justify-content: center; gap: 5px;
         }
-
         .size-btn {
             width: 30px; height: 30px; font-size: 18px; font-weight: bold;
             background: #555; padding: 0; line-height: 28px;
         }
-
         .size-btn:hover {
             background: #777;
         }
-
         #letterSizeInput {
             width: 60px; text-align: center; background: #333; color: white;
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
 
-        /* Clavier virtuel vertical à droite */
+        /* Clavier virtuel - CORRIGÉ pour 2 lignes */
         #keyboard {
-            position: fixed;
-            top: 50%;
-            right: 10px;
-            transform: translateY(-50%);
-            z-index: 30;
-            background: rgba(0,0,0,0.8);
-            padding: 8px;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            width: auto;
-            max-height: 90vh;
-            overflow-y: auto;
+            position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
+            z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
+            width: 90%; max-width: 550px;
         }
-
         .key {
-            width: 42px;
-            height: 42px;
-            background: #333;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 42px; height: 42px; background: #333; color: white;
+            border: none; border-radius: 6px; font-size: 20px; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
             transition: all 0.2s;
         }
-
         .key:hover {
             background: #555;
             transform: scale(1.1);
         }
-
         .key.validated {
             background: #28a745;
         }
-
         .key.invalid {
             background: #dc3545;
             cursor: not-allowed;
         }
-
-        /* Message d'attente au même endroit qu'avant */
         #waitingMessage {
-            position: fixed;
-            bottom: 10px;
-            left: 50%;
+            position: fixed; bottom: 10px; left: 50%;
             transform: translateX(-50%);
-            color: #ffc107;
-            font-size: 14px;
-            font-weight: bold;
+            color: #ffc107; font-size: 14px; font-weight: bold;
             z-index: 31;
             background: rgba(0, 0, 0, 0.7);
             padding: 8px 15px;
@@ -205,7 +159,7 @@
         </div>
     </div>
 
-    <!-- Contrôle taille lettre -->
+    <!-- Contrôle pour la taille des lettres -->
     <div id="letterSizeControl" style="display:none;">
         <div id="letterSizeLabel">Taille lettre (px)</div>
         <div id="letterSizeValue">80</div>
@@ -257,7 +211,7 @@
         let currentDisplayedLetter = null;
         let flashTimeout = null;
 
-        // Liste des lettres
+        // Liste des lettres (valeur fixe)
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
 
         // --- INITIALISATION DU CLAVIER ---
@@ -400,14 +354,14 @@
             const predictions = await model.estimateFaces(video, false);
 
             if (predictions.length > 0) {
-                const face = predictions;
+                const face = predictions[0];
                 const nose = face.landmarks[2];
-                const leftEye = face.landmarks;
+                const leftEye = face.landmarks[0];
                 const rightEye = face.landmarks[1];
 
                 // 1. DISTANCE
                 const distInterYeuxPx = Math.sqrt(
-                    Math.pow(rightEye - leftEye, 2) +
+                    Math.pow(rightEye[0] - leftEye[0], 2) +
                     Math.pow(rightEye[1] - leftEye[1], 2)
                 );
                 const K_FACTOR = 2800;
@@ -423,7 +377,7 @@
                 if (lastHeadPos) {
                     const dt = (now - lastTime);
                     if (dt > 16) {
-                        const dx = nose - lastHeadPos.x;
+                        const dx = nose[0] - lastHeadPos.x;
                         const dy = nose[1] - lastHeadPos.y;
                         const distPx = Math.sqrt(dx*dx + dy*dy);
                         let rawSpeed = distPx / dt;
@@ -431,7 +385,7 @@
                         speed = smoothedSpeed * 1000;
                     }
                 }
-                lastHeadPos = { x: nose, y: nose[1] };
+                lastHeadPos = { x: nose[0], y: nose[1] };
                 lastTime = now;
 
                 handleState(speed, now);
@@ -445,10 +399,10 @@
             requestAnimationFrame(loop);
         }
 
-        // --- MACHINE D'ÉTAT ---
+        // --- MACHINE D'ÉTAT MODIFIÉE ---
         function handleState(currentSpeed, now) {
             const minSpeedTrigger = 150;
-            const flashDuration = 60; // 60 ms
+            const flashDuration = 60; // Valeur fixe à 60ms
             const cooldownDuration = 1000;
 
             if (state === 'IDLE') {
@@ -463,7 +417,7 @@
 
                     waitingMessage.style.display = 'block';
 
-                    // Disparition auto après 60 ms
+                    // Disparaît automatiquement après 60ms
                     flashTimeout = setTimeout(() => {
                         if (state === 'WAITING_VALIDATION') {
                             letterEl.style.opacity = '0';
@@ -472,7 +426,7 @@
                     }, flashDuration);
                 }
             }
-            // Dans WAITING_VALIDATION, on ignore les mouvements
+            // Dans l'état WAITING_VALIDATION, on ignore les mouvements de tête
         }
 
         // --- CALCUL TAILLE OPTIQUE ---
