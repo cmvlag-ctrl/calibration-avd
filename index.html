@@ -258,6 +258,16 @@
                     waitingMessage.style.display = 'none';
                 } else {
                     clickedKey.classList.add('invalid');
+
+                    // Augmenter la taille de la lettre de 5px après une erreur
+                    letterSizePx = Math.min(300, letterSizePx + 5);
+                    letterSizeInputEl.value = letterSizePx;
+                    letterSizeValueEl.innerText = letterSizePx;
+
+                    updateAcuityFromSize();
+                    updateLetterDisplay();
+                    updateStats;
+
                     // Ne pas passer en IDLE, l'utilisateur doit réessayer
                 }
             }
