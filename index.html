@@ -319,13 +319,7 @@
 
                 // Afficher la nouvelle lettre après un délai
                 setTimeout(() => {
-                    if (!isCorrect) {
-                        // Si erreur, afficher immédiatement la même lettre avec nouvelle taille
-                        showNextLetter();
-                    } else {
-                        // Si correct, afficher la nouvelle lettre après le délai
-                        showNextLetter();
-                    }
+                    showNextLetter();
                 }, adaptiveConfig.nextDelay);
 
                 // Faire disparaître la lettre
@@ -510,7 +504,7 @@
                 if (distInterYeuxPx > 5) {
                     let calculatedDist = K_FACTOR / distInterYeuxPx;
                     rawDistance = calculatedDist;
-                    distance = (distance * 0.9) + (rawDistance * 0.1);
+                    distance = (distance * 0.9) + (rawDist * 0.1);
                     distance = Math.max(30, Math.min(120, distance));
                 }
 
@@ -538,6 +532,7 @@
             }
 
             // Démarrer le test adaptatif après une brève initialisation
+            // SEULEMENT si le test n'a pas encore commencé
             if (state === 'IDLE' && adaptiveStats.totalTrials === 0) {
                 setTimeout(() => {
                     showNextLetter();
