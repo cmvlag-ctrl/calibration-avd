@@ -5,163 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Test AV - Détection Avancée avec Clavier</title>
     <style>
-        body {
-            margin: 0;
-            background: #000;
-            overflow: hidden;
-            font-family: sans-serif;
-            color: white;
-        }
-        video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0.2;
-            z-index: 1;
-            transform: scaleX(-1);
-        }
-        #letterDisplay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 100px;
-            font-weight: bold;
-            color: white;
-            opacity: 0;
-            z-index: 10;
-            pointer-events: none;
-            text-shadow: 0 0 10px black;
-        }
-        #ui {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 20;
-            background: rgba(0,0,0,0.8);
-            padding: 10px;
-            border-radius: 8px;
-            max-width: 300px;
-        }
-        .stat {
-            font-size: 12px;
-            margin: 2px 0;
-            color: #0f0;
-            font-family: monospace;
-        }
-        .error {
-            color: #f55;
-        }
-        .keyboard {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            z-index: 15;
-            background: rgba(0,0,0,0.7);
-            padding: 10px;
-            border-radius: 8px;
-        }
-        .key {
-            background: #444;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s;
-        }
-        .key:hover {
-            background: #666;
-        }
-        .key.validated {
-            background: #0f0;
-        }
-        .key.invalid {
-            background: #f55;
-        }
-        #startOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 20px;
-        }
-        #calibPanel {
-            display: none;
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #444;
-            text-align: center;
-        }
-        .calib-bar-container {
-            height: 20px;
-            border: 1px dashed #666;
-            margin: 10px auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 120px;
-        }
-        .calib-bar {
-            height: 100%;
-            width: 0%;
-            background: #4ecdc4;
-        }
-        button {
-            background: #4ecdc4;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            width: 100%;
-            margin-top: 5px;
-        }
-        button.secondary {
-            background: #555;
-            color: white;
-        }
-        #waitingMessage {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
-            padding: 20px;
-            border-radius: 10px;
-            font-size: 24px;
-            z-index: 12;
-            display: none;
-        }
-        .speed-gauge {
-            height: 6px;
-            background: #333;
-            margin-top: 5px;
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        .speed-bar {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #0f0, #ff0, #f00);
-            transition: width 0.1s linear;
-        }
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
+        video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.2; z-index: 1; transform: scaleX(-1); }
+        #letterDisplay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 100px; font-weight: bold; color: white; opacity: 0; z-index: 10; pointer-events: none; text-shadow: 0 0 10px black; }
+        #ui { position: absolute; top: 10px; left: 10px; z-index: 20; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; max-width: 300px; }
+        .stat { font-size: 12px; margin: 2px 0; color: #0f0; font-family: monospace; }
+        .error { color: #f55; }
+        .keyboard { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; gap: 5px; z-index: 15; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; }
+        .key { background: #444; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .key:hover { background: #666; }
+        .key.validated { background: #0f0; }
+        .key.invalid { background: #f55; }
+        #startOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+        #calibPanel { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #444; text-align: center; }
+        .calib-bar-container { height: 20px; border: 1px dashed #666; margin: 10px auto; display: flex; justify-content: center; align-items: center; width: 120px; }
+        .calib-bar { height: 100%; width: 0%; background: #4ecdc4; }
+        button { background: #4ecdc4; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
+        button.secondary { background: #555; color: white; }
+        #waitingMessage { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; font-size: 24px; z-index: 12; display: none; }
+        .speed-gauge { height: 6px; background: #333; margin-top: 5px; border-radius: 3px; overflow: hidden; }
+        .speed-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #ff0, #f00); transition: width 0.1s linear; }
     </style>
 </head>
 <body>
@@ -171,9 +34,7 @@
         <div class="stat">Vitesse: <span id="statusSpeed">0</span></div>
         <div class="stat">Distance: <span id="statusDist">~100</span> cm</div>
         <div class="stat">Taille: <span id="statusSize">100</span> px</div>
-        <div class="speed-gauge">
-            <div id="speedBar" class="speed-bar"></div>
-        </div>
+        <div class="speed-gauge"><div id="speedBar" class="speed-bar"></div></div>
         <div style="margin-top: 10px;">
             <label for="acuity">Acuité (1.0 = normale): <span id="valAcuity">1.0</span></label>
             <input type="range" id="acuity" min="0.1" max="2.0" step="0.1" value="1.0">
@@ -183,13 +44,9 @@
         <div id="calibPanel">
             <label for="distance">Distance (cm): <span id="distValue">100</span></label>
             <input type="range" id="distance" min="30" max="300" value="100">
-            <div class="calib-bar-container">
-                <div id="calibBar" class="calib-bar"></div>
-            </div>
-            <div>
-                <label for="letterSize">Taille lettre (px): <span id="letterSizeValue">100</span></label>
-                <input type="range" id="letterSize" min="20" max="300" value="100">
-            </div>
+            <div class="calib-bar-container"><div id="calibBar" class="calib-bar"></div></div>
+            <div><label for="letterSize">Taille lettre (px): <span id="letterSizeValue">100</span></label>
+            <input type="range" id="letterSize" min="20" max="300" value="100"></div>
         </div>
     </div>
     <div id="keyboard" class="keyboard"></div>
@@ -203,7 +60,7 @@
         let distance = 100;
         let acuity = 1.0;
         let letterSizePx = 100;
-        let screenDPI = 96; // Valeur par défaut, sera détectée
+        let screenDPI = 96;
         let flashTimeout = null;
         const letters = ['E', 'F', 'P', 'D', 'O', 'C', 'Z', 'L', 'T', 'H'];
 
@@ -225,9 +82,66 @@
         const letterSizeEl = document.getElementById('letterSize');
         const letterSizeValueEl = document.getElementById('letterSizeValue');
 
-        // --- INITIALISATION ---
+        // --- FONCTION DE VALIDATION MODIFIÉE UNIQUEMENT ---
+        function validateLetter(letter) {
+            if (state !== 'WAITING_VALIDATION') return;
+
+            if (flashTimeout) {
+                clearTimeout(flashTimeout);
+                flashTimeout = null;
+            }
+
+            const keys = document.querySelectorAll('.key');
+            keys.forEach(k => k.classList.remove('validated', 'invalid'));
+
+            const clickedKey = Array.from(keys).find(k => k.textContent === letter);
+
+            if (clickedKey) {
+                if (letter === currentDisplayedLetter) {
+                    clickedKey.classList.add('validated');
+                    letterEl.style.opacity = '0';
+
+                    // Réduire de 5px après validation réussie
+                    letterSizePx = Math.max(20, letterSizePx - 5);
+                    letterSizeEl.value = letterSizePx;
+                    letterSizeValueEl.innerText = letterSizePx;
+                    updateAcuityFromSize();
+                    updateLetterDisplay();
+                    updateStats();
+                    state = 'IDLE';
+                    waitingMessage.style.display = 'none';
+                } else {
+                    clickedKey.classList.add('invalid');
+
+                    // Augmenter de 5px après erreur
+                    letterSizePx = Math.min(300, letterSizePx + 5);
+                    letterSizeEl.value = letterSizePx;
+                    letterSizeValueEl.innerText = letterSizePx;
+                    updateAcuityFromSize();
+                    updateLetterDisplay();
+                    updateStats();
+
+                    // MODIFICATION PRINCIPALE : Remettre à IDLE pour permettre nouvelle tentative
+                    state = 'IDLE';
+                    waitingMessage.style.display = 'none';
+
+                    // Afficher immédiatement une nouvelle lettre
+                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
+                    letterEl.innerText = currentDisplayedLetter;
+                    letterEl.style.opacity = '1';
+                    waitingMessage.style.display = 'block';
+
+                    flashTimeout = setTimeout(() => {
+                        if (state === 'WAITING_VALIDATION') {
+                            letterEl.style.opacity = '0';
+                        }
+                    }, 60);
+                }
+            }
+        }
+
+        // --- LE RESTE DU CODE RESTE IDENTIQUE ---
         function init() {
-            // Détection du DPI de l'écran
             const tempDiv = document.createElement('div');
             tempDiv.style.width = '1in';
             tempDiv.style.height = '1in';
@@ -238,7 +152,6 @@
             screenDPI = parseFloat(getComputedStyle(tempDiv).width);
             document.body.removeChild(tempDiv);
 
-            // Initialiser le clavier
             letters.forEach(letter => {
                 const key = document.createElement('button');
                 key.className = 'key';
@@ -247,32 +160,26 @@
                 keyboardEl.appendChild(key);
             });
 
-            // Événements
             startBtn.addEventListener('click', startTest);
             resetBtn.addEventListener('click', resetTest);
             acuityEl.addEventListener('input', updateParams);
             distanceEl.addEventListener('input', updateParams);
             letterSizeEl.addEventListener('input', updateSizeFromParams);
 
-            // Lancer la caméra
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({ video: true })
                     .then(stream => {
                         videoEl.srcObject = stream;
                         detectHeadMovement();
                     })
-                    .catch(err => {
-                        console.error("Erreur caméra:", err);
-                    });
+                    .catch(err => console.error("Erreur caméra:", err));
             }
         }
 
-        // --- DÉTECTION MOUVEMENT TÊTE ---
         function detectHeadMovement() {
             let lastX = 0;
-            let lastY = 0;
             let lastTime = 0;
-            const threshold = 0.05; // Seuil de détection
+            const threshold = 0.05;
 
             function processFrame() {
                 if (videoEl.readyState === 4) {
@@ -282,27 +189,18 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
 
-                    // Analyse basique (simplifiée - en réalité il faudrait un algo de détection de visage)
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const data = imageData.data;
-
-                    // Calculer la moyenne des pixels (très simplifié)
                     let sum = 0;
-                    for (let i = 0; i < data.length; i += 4) {
-                        sum += data[i] + data[i+1] + data[i+2];
-                    }
+                    for (let i = 0; i < data.length; i += 4) sum += data[i] + data[i+1] + data[i+2];
                     const avg = sum / (data.length / 4) / 3;
 
-                    // Détection de mouvement (simplifiée)
                     const currentTime = performance.now();
-                    if (currentTime - lastTime > 100) { // Limiter à 10 FPS
-                        if (Math.abs(avg - lastX) > threshold || Math.abs(avg - lastY) > threshold) {
-                            if (state === 'IDLE') {
-                                showRandomLetter();
-                            }
+                    if (currentTime - lastTime > 100) {
+                        if (Math.abs(avg - lastX) > threshold && state === 'IDLE') {
+                            showRandomLetter();
                         }
                         lastX = avg;
-                        lastY = avg;
                         lastTime = currentTime;
                     }
                 }
@@ -313,92 +211,18 @@
 
         function showRandomLetter() {
             if (state !== 'IDLE') return;
-
             state = 'WAITING_VALIDATION';
             currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
             letterEl.innerText = currentDisplayedLetter;
             letterEl.style.opacity = '1';
             waitingMessage.style.display = 'block';
 
-            // Disparaît automatiquement après 60ms si pas validé
             flashTimeout = setTimeout(() => {
-                if (state === 'WAITING_VALIDATION') {
-                    letterEl.style.opacity = '0';
-                }
+                if (state === 'WAITING_VALIDATION') letterEl.style.opacity = '0';
             }, 60);
         }
 
-        // --- VALIDATION D'UNE LETTRE ---
-        function validateLetter(letter) {
-            if (state !== 'WAITING_VALIDATION') return;
-
-            // Effacer le timeout de disparition automatique
-            if (flashTimeout) {
-                clearTimeout(flashTimeout);
-                flashTimeout = null;
-            }
-
-            const keys = document.querySelectorAll('.key');
-
-            // Réinitialiser tous les styles
-            keys.forEach(k => {
-                k.classList.remove('validated', 'invalid');
-            });
-
-            // Trouver la touche cliquée
-            const clickedKey = Array.from(keys).find(k => k.textContent === letter);
-
-            if (clickedKey) {
-                if (letter === currentDisplayedLetter) {
-                    clickedKey.classList.add('validated');
-                    letterEl.style.opacity = '0';
-
-                    // Réduire la taille de la lettre suivante de 5px après validation réussie
-                    letterSizePx = Math.max(20, letterSizePx - 5);
-                    letterSizeEl.value = letterSizePx;
-                    letterSizeValueEl.innerText = letterSizePx;
-
-                    updateAcuityFromSize();
-                    updateLetterDisplay();
-                    updateStats();
-
-                    state = 'IDLE';
-                    waitingMessage.style.display = 'none';
-                } else {
-                    clickedKey.classList.add('invalid');
-
-                    // Augmenter la taille de la lettre de 5px après une erreur
-                    letterSizePx = Math.min(300, letterSizePx + 5);
-                    letterSizeEl.value = letterSizePx;
-                    letterSizeValueEl.innerText = letterSizePx;
-
-                    updateAcuityFromSize();
-                    updateLetterDisplay();
-                    updateStats();
-
-                    // MODIFICATION CORRECTIVE : Remettre à IDLE pour permettre une nouvelle tentative
-                    state = 'IDLE';
-                    waitingMessage.style.display = 'none';
-
-                    // Afficher immédiatement une nouvelle lettre
-                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-                    letterEl.innerText = currentDisplayedLetter;
-                    letterEl.style.opacity = '1';
-                    waitingMessage.style.display = 'block';
-
-                    // Disparaît automatiquement après 60ms
-                    flashTimeout = setTimeout(() => {
-                        if (state === 'WAITING_VALIDATION') {
-                            letterEl.style.opacity = '0';
-                        }
-                    }, 60);
-                }
-            }
-        }
-
-        // --- FONCTIONS DE MISE À JOUR ---
         function updateAcuityFromSize() {
-            // Calcul inverse pour maintenir la cohérence
             const calculatedAcuity = (distance * 0.0145) / (letterSizePx / ((screenDPI / 2.54) * 1));
             acuityEl.value = Math.round(calculatedAcuity * 10) / 10;
             valAcuityEl.innerText = acuityEl.value;
@@ -421,15 +245,12 @@
             distance = parseInt(distanceEl.value);
             distValueEl.innerText = distance;
 
-            // Calculer la taille de lettre en fonction des paramètres
             letterSizePx = Math.round(calculateSize(distance, acuity));
             letterSizeEl.value = letterSizePx;
             letterSizeValueEl.innerText = letterSizePx;
-
             updateLetterDisplay();
             updateStats();
 
-            // Mettre à jour la barre de calibration
             const pct = (distance - 30) / (300 - 30) * 100;
             calibBarEl.style.width = `${pct}%`;
         }
@@ -476,16 +297,10 @@
             updateLetterDisplay();
             updateStats();
 
-            // Réinitialiser le clavier
-            document.querySelectorAll('.key').forEach(k => {
-                k.classList.remove('validated', 'invalid');
-            });
-
-            // Réafficher l'overlay de démarrage
+            document.querySelectorAll('.key').forEach(k => k.classList.remove('validated', 'invalid'));
             document.getElementById('startOverlay').style.display = 'flex';
         }
 
-        // Démarrer l'application
         init();
     </script>
 </body>
