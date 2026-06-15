@@ -82,7 +82,7 @@
         }
         /* Clavier virtuel */
         #keyboard {
-            position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%);
+            position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
             display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
             width: 90%; max-width: 550px;
@@ -98,10 +98,10 @@
             transform: scale(1.1);
         }
         .key.validated {
-            background: #28a745; /* Vert Bootstrap */
+            background: #28a745;
         }
         .key.invalid {
-            background: #dc3545; /* Rouge Bootstrap */
+            background: #dc3545;
         }
         /* Message "Début" */
         #startMessage {
@@ -119,12 +119,23 @@
             border-radius: 8px; font-family: monospace; font-size: 14px;
             text-align: center; width: 90%; max-width: 550px;
         }
-        /* Bouton FIN */
-        #finishButton {
-            background: #ffc107; color: #000; font-weight: bold;
+        /* Boutons du clavier */
+        .keyboard-controls {
+            display: flex; justify-content: space-between; width: 100%;
+            margin-top: 10px;
         }
-        #finishButton:hover {
-            background: #ffd54f;
+        .keyboard-controls button {
+            width: 45%; padding: 8px; font-size: 12px;
+        }
+        .calib-button {
+            background: #555 !important;
+        }
+        .finish-button {
+            background: #ffc107 !important;
+            color: #000 !important;
+        }
+        .finish-button:hover {
+            background: #ffd54f !important;
         }
         /* Overlay de fin */
         #finalStatsOverlay {
@@ -204,6 +215,10 @@
 
     <!-- Clavier virtuel -->
     <div id="keyboard" style="display:none;">
+        <div class="keyboard-controls">
+            <button class="calib-button secondary" onclick="toggleCalib()">📏 Calibrer</button>
+            <button class="finish-button" onclick="showFinalStats()">FIN</button>
+        </div>
         <!-- Les touches seront générées par JavaScript -->
     </div>
 
@@ -497,7 +512,7 @@
 
     function updateAcuityFromSize() {
         acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx);
-        acuity = Math.max(0.1, Math.min(2.0, acuity);
+        acuity = Math.max(0.1, Math.min(2.0, acuity));
         document.getElementById('acuity').value = acuity.toFixed(1);
         document.getElementById('valAcuity').innerText = acuity.toFixed(1);
     }
