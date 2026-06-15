@@ -158,9 +158,9 @@
         <div id="letterSizeLabel">Taille lettre (px)</div>
         <div id="letterSizeValue">80</div>
         <div class="size-control-buttons">
-            <button class="size-btn secondary" onclick="adjustLetterSize(-10)">-</button>
+            <button class="size-btn secondary" onclick="adjustLetterSize(-5)">-</button>
             <input type="number" id="letterSizeInput" min="20" max="300" value="80" onchange="updateLetterSizeFromInput()">
-            <button class="size-btn secondary" onclick="adjustLetterSize(10)">+</button>
+            <button class="size-btn secondary" onclick="adjustLetterSize(5)">+</button>
         </div>
     </div>
 
@@ -246,35 +246,34 @@
 
             if (clickedKey) {
                 if (letter === currentDisplayedLetter) {
+                    // BONNE RÉPONSE
                     clickedKey.classList.add('validated');
-                    letterEl.style.opacity = '0'; // Faire disparaître immédiatement
+                    letterEl.style.opacity = '0';
 
                     // Réinitialiser le compteur d'erreurs
                     errorCount = 0;
 
-                    // Si bonne réponse : diminuer la taille de 10px
-                    currentLetterSize = Math.max(20, currentLetterSize - 10);
+                    // Diminuer la taille de la prochaine lettre de 5px
+                    currentLetterSize = Math.max(20, currentLetterSize - 5);
                     letterSizePx = currentLetterSize;
 
                     state = 'IDLE';
                     waitingMessage.style.display = 'none';
                     updateStats();
                 } else {
+                    // MAUVAISE RÉPONSE
                     clickedKey.classList.add('invalid');
-
-                    // Incrémenter le compteur d'erreurs
                     errorCount++;
 
-                    // Si 3 erreurs consécutives : augmenter la taille de 20px
                     if (errorCount >= 3) {
-                        currentLetterSize = Math.min(300, currentLetterSize + 20);
+                        // 3ème erreur consécutive → augmenter la taille de 5px
+                        currentLetterSize = Math.min(300, currentLetterSize + 5);
                         letterSizePx = currentLetterSize;
                         errorCount = 0; // Réinitialiser le compteur
                     }
 
-                    // Réafficher la même lettre pour que l'utilisateur réessaye
-                    letterEl.style.opacity = '1';
-                    letterEl.style.fontSize = currentLetterSize + 'px';
+                    // Rester en mode WAITING_VALIDATION pour que l'utilisateur réessaye
+                    // La même lettre reste affichée avec la même taille
                 }
             }
         }
@@ -387,78 +386,7 @@
                 if (distInterYeuxPx > 5) {
                     let calculatedDist = K_FACTOR / distInterYeuxPx;
                     rawDistance = calculatedDist;
-                    distance = (distance * 0.9) + (rawDistance * 0.1);
-                    distance = Math.max(30, Math.min(120, distance));
-                }
-
-                // 2. VITESSE
-                const now = performance.now();
-                if (lastHeadPos) {
-                    const dt = (now - lastTime);
-                    if (dt > 16) {
-                        const dx = nose[0] - lastHeadPos.x;
-                        const dy = nose[1] - lastHeadPos.y;
-                        const distPx = Math.sqrt(dx*dx + dy*dy);
-                        let rawSpeed = distPx / dt;
-                        smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
-                        speed = smoothedSpeed * 1000;
-                    }
-                }
-                lastHeadPos = { x: nose[0], y: nose[1] };
-                lastTime = now;
-
-                handleState(speed, now);
-                updateStats();
-
-            } else {
-                smoothedSpeed = smoothedSpeed * 0.9;
-                speed = smoothedSpeed * 1000;
-                updateStats();
-            }
-            requestAnimationFrame(loop);
-        }
-
-        // --- MACHINE D'ÉTAT MODIFIÉE ---
-        function handleState(currentSpeed, now) {
-            const minSpeedTrigger = 150;
-            const flashDuration = 60; // Valeur fixe à 60ms
-            const cooldownDuration = 1000;
-
-            if (state === 'IDLE') {
-                if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
-                    state = 'WAITING_VALIDATION';
-                    lastFlashTime = now;
-
-                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-                    letterEl.innerText = currentDisplayedLetter;
-                    letterEl.style.fontSize = currentLetterSize + 'px';
-                    letterEl.style.opacity = '1';
-
-                    waitingMessage.style.display = 'block';
-
-                    // Disparaît automatiquement après 60ms
-                    flashTimeout = setTimeout(() => {
-                        if (state === 'WAITING_VALIDATION') {
-                            letterEl.style.opacity = '0';
-                            // On reste en WAITING_VALIDATION jusqu'à validation
-                        }
-                    }, flashDuration);
-                }
-            }
-            // Dans l'état WAITING_VALIDATION, on ignore les mouvements de tête
-        }
-
-        // --- CALCUL TAILLE OPTIQUE ---
-        function calculateSize(distCm, acuityDecimal) {
-            let heightCm = (distCm * 0.0145) / acuityDecimal;
-            let heightPx = (heightCm / 2.54) * screenDPI;
-            return Math.max(20, Math.round(heightPx));
-        }
-
-        function updateParams() {
-            acuity = parseFloat(document.getElementById('acuity').value);
-            document.getElementById('valAcuity').innerText = acuity.toFixed(1);
-            letterSizePx = Math.round(calculateSize(distance, acuity));
+                    distance = (distance * 0.9) + (rawDist[...]teSizePx = Math.round(calculateSize(distance, acuity));
             currentLetterSize = letterSizePx;
             updateLetterDisplay();
             letterSizeInputEl.value = letterSizePx;
