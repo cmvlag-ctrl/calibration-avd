@@ -83,7 +83,7 @@
         }
         /* Clavier virtuel */
         #keyboard {
-            position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
+            position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
             display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
             width: 90%; max-width: 550px;
@@ -112,6 +112,27 @@
             opacity: 0; z-index: 20;
             text-shadow: 0 0 10px #4ecdc4;
             transition: opacity 0.3s;
+        }
+        /* Score */
+        #scoreDisplay {
+            position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+            z-index: 30; background: rgba(0,0,0,0.8); padding: 10px 15px;
+            border-radius: 8px; font-family: monospace; font-size: 14px;
+            text-align: center; width: 90%; max-width: 550px;
+        }
+        /* Message d'attente */
+        #waitingMessage {
+            display: none;
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            text-align: center;
         }
     </style>
 </head>
@@ -170,7 +191,11 @@
     </div>
 
     <!-- Message d'attente -->
-    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
+    <div id="waitingMessage">⏳ Validez la lettre affichée pour continuer</div>
+
+    <!-- Score -->
+    <div id="scoreDisplay">Score: -- | Plus petite lettre réussie: -- px</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
@@ -186,6 +211,7 @@
     let letterSizeInputEl = document.getElementById('letterSizeInput');
     let keyboard = document.getElementById('keyboard');
     let waitingMessage = document.getElementById('waitingMessage');
+    let scoreDisplay = document.getElementById('scoreDisplay');
 
     // Paramètres
     let acuity = 1.0;
@@ -205,7 +231,12 @@
     let currentDisplayedLetter = null;
     let flashTimeout = null;
 
-    // Liste des lettres (valeur fixe)
+    // Statistiques
+    let totalLetters = 0;
+    let correctLetters = 0;
+    let minSuccessfulLetterSize = Infinity;
+
+    // Liste des lettres
     const letters = "D F P V A N L C O E R U S Z H".split(" ");
 
     // --- INITIALISATION DU CLAVIER ---
@@ -233,19 +264,27 @@
         }
 
         const keys = document.querySelectorAll('.key');
-        keys.forEach(k => k.classList.remove('validated', 'invalid')); // Réinitialiser les styles
+        keys.forEach(k => k.classList.remove('validated', 'invalid'));
 
-        // Trouver la touche cliquée
         const clickedKey = Array.from(keys).find(k => k.textContent === letter);
 
         if (clickedKey) {
+            totalLetters++;
             if (letter === currentDisplayedLetter) {
-                // ✅ Bonne réponse → Vert
+                // Bonne réponse
+                correctLetters++;
                 clickedKey.classList.add('validated');
                 letterEl.style.opacity = '0';
+
+                // Mettre à jour la taille minimale réussie
+                if (letterSizePx < minSuccessfulLetterSize) {
+                    minSuccessfulLetterSize = letterSizePx;
+                }
+
+                // Réduire la taille de la lettre
                 letterSizePx = Math.max(20, letterSizePx - 5);
             } else {
-                // ❌ Mauvaise réponse → Rouge
+                // Mauvaise réponse
                 clickedKey.classList.add('invalid');
                 letterSizePx = Math.min(300, letterSizePx + 5);
             }
@@ -253,12 +292,20 @@
             updateAcuityFromSize();
             updateLetterDisplay();
             updateStats();
+            updateScore();
 
             state = 'IDLE';
             waitingMessage.style.display = 'none';
+        }
+    }
 
-            waitingMessage.textContent = "Faites un mouvement de tête pour continuer";
-            waitingMessage.style.display = 'block';
+    // --- MISE À JOUR DU SCORE ---
+    function updateScore() {
+        if (totalLetters === 0) {
+            scoreDisplay.innerHTML = `Score: -- | Plus petite lettre réussie: -- px`;
+        } else {
+            const successRate = Math.round((correctLetters / totalLetters) * 100);
+            scoreDisplay.innerHTML = `Score: ${successRate}% (${correctLetters}/${totalLetters}) | Plus petite lettre réussie: ${minSuccessfulLetterSize} px`;
         }
     }
 
@@ -335,11 +382,9 @@
                 document.getElementById('statusInit').innerText = "Chargement IA...";
                 model = await blazeface.load();
 
-                // 👉 Message "Début" quand l'IA est prête
                 document.getElementById('statusInit').innerText = "IA prête";
                 startMessage.style.opacity = '1';
 
-                // Disparaît après 1 seconde
                 setTimeout(() => {
                     startMessage.style.opacity = '0';
                 }, 1000);
@@ -407,7 +452,7 @@
     // --- MACHINE D'ÉTAT ---
     function handleState(currentSpeed, now) {
         const minSpeedTrigger = 150;
-        const flashDuration = 60; // Valeur fixe à 60ms
+        const flashDuration = 60;
         const cooldownDuration = 1000;
 
         if (state === 'IDLE') {
@@ -418,10 +463,8 @@
                 letterEl.innerText = currentDisplayedLetter;
                 letterEl.style.opacity = '1';
 
-                waitingMessage.textContent = "⏳ Validez la lettre affichée pour continuer";
                 waitingMessage.style.display = 'block';
 
-                // Disparaît automatiquement après 60ms
                 flashTimeout = setTimeout(() => {
                     if (state === 'WAITING_VALIDATION') {
                         letterEl.style.opacity = '0';
@@ -429,7 +472,6 @@
                 }, flashDuration);
             }
         }
-        // Dans l'état WAITING_VALIDATION, on ignore les mouvements de tête
     }
 
     // --- CALCUL TAILLE OPTIQUE ---
