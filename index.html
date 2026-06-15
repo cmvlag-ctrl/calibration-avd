@@ -2,29 +2,59 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Test AV - Détection Avancée avec Clavier</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test d'Acuité Visuelle</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
+        body { 
+            margin: 0; overflow: hidden; 
+            background: #000; color: #fff;
+            font-family: Arial, sans-serif;
+        }
         video {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; opacity: 0.2; z-index: 1; transform: scaleX(-1);
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
         }
         #letterDisplay {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 100px; font-weight: bold; color: white;
-            opacity: 0; z-index: 10; pointer-events: none;
+            font-family: monospace;
+            font-weight: bold;
+            color: #fff;
+            font-size: 100px;
+            opacity: 0;
+            transition: opacity 0.05s;
             text-shadow: 0 0 10px black;
         }
         #ui {
-            position: absolute; top: 10px; left: 10px; z-index: 20;
-            background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
-            max-width: 300px;
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(0,0,0,0.7); padding: 10px;
+            border-radius: 5px; max-width: 300px;
         }
-        .stat { font-size: 12px; margin: 2px 0; color: #0f0; font-family: monospace; }
-        .error { color: #f55; }
-
+        #controls {
+            margin-top: 10px;
+        }
+        #controls button {
+            padding: 5px 15px; font-size: 16px;
+            cursor: pointer; background: #222; color: #fff;
+            border: 1px solid #555; border-radius: 3px;
+        }
+        #controls button:hover { background: #555; }
+        #letterSizeInput {
+            width: 60px; padding: 5px;
+            background: #222; color: #fff; border: 1px solid #555;
+        }
+        
+        /* Mode debug */
+        #debugBox {
+            position: absolute; top: 10px; right: 10px;
+            background: rgba(0,0,0,0.7); padding: 10px;
+            border-radius: 5px; font-size: 12px;
+            font-family: monospace; color: #0f0;
+        }
+        
         /* Clavier virtuel */
         #keyboard {
             position: absolute; bottom: 20px; left: 50%;
@@ -32,57 +62,37 @@
             display: grid;
             grid-template-columns: repeat(10, 1fr);
             gap: 5px; z-index: 20;
-            background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px;
         }
         .key {
-            width: 40px; height: 40px; background: #222; color: white;
             border: 1px solid #444; border-radius: 5px;
             font-size: 18px; font-weight: bold;
-            display: flex; align-items: center; justify-content: center;
             cursor: pointer; user-select: none;
+            background: #222; color: #fff;
+            padding: 10px 15px;
         }
         .key:hover { background: #444; }
-        .key:active, .key.active { background: #0f0; color: black; }
         
+        /* Overlay de démarrage */
         #startOverlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); z-index: 100;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
         }
-        #startOverlay h1 { color: #0f0; font-size: 32px; margin-bottom: 20px; }
-        #startOverlay p { color: #ccc; max-width: 400px; text-align: center; margin: 10px; }
+        #startOverlay h1 {
+            margin-bottom: 20px;
+        }
         #startBtn {
-            background: #0f0; color: black; border: none; padding: 15px 40px;
-            font-size: 20px; font-weight: bold; border-radius: 8px; cursor: pointer;
-            margin-top: 20px;
+            padding: 15px 40px; font-size: 20px;
+            cursor: pointer; background: #222; color: #fff;
+            border: 2px solid #0f0; border-radius: 5px;
         }
         #startBtn:hover { background: #0c0; }
 
-        /* Contrôles */
-        #controls {
-            position: absolute; top: 10px; right: 10px; z-index: 20;
-            background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
-            display: flex; gap: 10px; align-items: center;
-        }
-        #controls button {
-            background: #333; color: white; border: 1px solid #555;
-            padding: 5px 10px; border-radius: 4px; cursor: pointer;
-        }
-        #controls button:hover { background: #555; }
-        #letterSizeInput {
-            width: 60px; padding: 5px; background: #222; color: white;
-            border: 1px solid #444; border-radius: 4px; text-align: center;
-        }
-        
-        /* Mode debug */
-        #debugBox {
-            position: absolute; bottom: 10px; left: 10px; z-index: 20;
-            background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
-            font-family: monospace; font-size: 11px; color: #888; max-width: 250px;
-        }
+        .error { color: #f55; }
         
         @media (max-width: 600px) {
-            .key { width: 30px; height: 30px; font-size: 14px; }
             #keyboard { gap: 3px; padding: 10px; }
         }
     </style>
@@ -92,18 +102,16 @@
     <div id="letterDisplay">A</div>
     
     <div id="ui">
-        <div class="stat">Acuité: <span id="acuityDisplay">1.0</span></div>
-        <div class="stat">Distance: <span id="distanceDisplay">--</span> cm</div>
-        <div class="stat">Erreurs: <span id="errorDisplay">0</span></div>
-        <div class="stat">Temps: <span id="timeDisplay">0.0</span>s</div>
-        <div class="stat">Taille: <span id="sizeDisplay">100</span>px</div>
-    </div>
-    
-    <div id="controls">
-        <span>Taille:</span>
-        <button id="decreaseBtn">-</button>
-        <input type="number" id="letterSizeInput" value="100" min="10" max="500">
-        <button id="increaseBtn">+</button>
+        <div>Score: <span id="scoreDisplay">0</span></div>
+        <div>Erreurs: <span id="errorDisplay" class="error">0</span></div>
+        <div>Taille: <span id="sizeDisplay">100</span>px</div>
+        <div>Acuité: <span id="acuityDisplay">10/10</span></div>
+        <div id="controls">
+            <span>Taille:</span>
+            <button id="decreaseBtn">-</button>
+            <input id="letterSizeInput" type="number" value="100" min="20" max="500">
+            <button id="increaseBtn">+</button>
+        </div>
     </div>
     
     <div id="keyboard"></div>
@@ -111,25 +119,20 @@
     
     <div id="startOverlay">
         <h1>Test d'Acuité Visuelle</h1>
-        <p>Ce test mesure votre acuité visuelle en détection dynamique.</p>
-        <p>Placez-vous à environ 50-60cm de l'écran.</p>
-        <p>Quand une lettre apparaît, cliquez sur le clavier virtuel correspondant.</p>
-        <button id="startBtn">Démarrer le Test</button>
+        <p>Cliquez sur "Démarrer" pour commencer le test</p>
+        <button id="startBtn">Démarrer</button>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
     <script>
         const video = document.getElementById('video');
         const letterDisplay = document.getElementById('letterDisplay');
-        const acuityDisplay = document.getElementById('acuityDisplay');
-        const distanceDisplay = document.getElementById('distanceDisplay');
+        const scoreDisplay = document.getElementById('scoreDisplay');
         const errorDisplay = document.getElementById('errorDisplay');
-        const timeDisplay = document.getElementById('timeDisplay');
         const sizeDisplay = document.getElementById('sizeDisplay');
-        const letterSizeInput = document.getElementById('letterSizeInput');
+        const acuityDisplay = document.getElementById('acuityDisplay');
+        const keyboard = document.getElementById('keyboard');
         const debugBox = document.getElementById('debugBox');
+        const letterSizeInput = document.getElementById('letterSizeInput');
         
         // État global
         let isRunning = false;
@@ -141,6 +144,8 @@
         let letterSize = 100;
         let faceMesh = null;
         let camera = null;
+        let screenDPI = 96;
+        let showLetterTimeout = null;
         
         // Configuration lettres
         const letters = 'ECDFZPOTHXKYVUBA';
@@ -149,7 +154,6 @@
         const maxSize = 500;
         
         // Initialisation clavier
-        const keyboard = document.getElementById('keyboard');
         for (let i = 0; i < letters.length; i++) {
             const key = document.createElement('div');
             key.className = 'key';
@@ -162,12 +166,11 @@
         function adjustKeyboardGrid() {
             const width = window.innerWidth;
             if (width < 500) {
-                keyboard.style.gridTemplateColumns = 'repeat(8, 1fr)';
+                keyboard.style.gridTemplateColumns = 'repeat(5, 1fr)';
             } else {
                 keyboard.style.gridTemplateColumns = 'repeat(10, 1fr)';
             }
         }
-        window.addEventListener('resize', adjustKeyboardGrid);
         adjustKeyboardGrid();
         
         // Gestion touches clavier physique
@@ -175,39 +178,37 @@
             const key = e.key.toUpperCase();
             if (letters.includes(key)) {
                 handleKeyPress(key);
-                document.querySelectorAll('.key').forEach(k => {
-                    if (k.textContent === key) k.classList.add('active');
-                });
             }
         });
         document.addEventListener('keyup', (e) => {
             const key = e.key.toUpperCase();
-            document.querySelectorAll('.key').forEach(k => {
-                if (k.textContent === key) k.classList.remove('active');
-            });
         });
         
         // Contrôles manuels
-        document.getElementById('increaseBtn').onclick = () => {
-            letterSize = Math.min(maxSize, letterSize + 10);
-            letterSizeInput.value = letterSize;
-            updateAcuityFromSize();
-            showLetter();
-        };
-        
         document.getElementById('decreaseBtn').onclick = () => {
-            letterSize = Math.max(minSize, letterSize - 10);
-            letterSizeInput.value = letterSize;
-            updateAcuityFromSize();
-            showLetter();
+            if (letterSize > minSize) {
+                letterSize -= 10;
+                letterSizeInput.value = letterSize;
+                updateAcuityFromSize();
+                showLetter();
+            }
         };
         
-        letterSizeInput.addEventListener('change', (e) => {
+        document.getElementById('increaseBtn').onclick = () => {
+            if (letterSize < maxSize) {
+                letterSize += 10;
+                letterSizeInput.value = letterSize;
+                updateAcuityFromSize();
+                showLetter();
+            }
+        };
+        
+        letterSizeInput.onchange = (e) => {
             letterSize = Math.max(minSize, Math.min(maxSize, parseInt(e.target.value) || defaultSize));
             e.target.value = letterSize;
             updateAcuityFromSize();
             showLetter();
-        });
+        };
         
         // Gestion réponse utilisateur
         function handleKeyPress(key) {
@@ -218,10 +219,10 @@
             if (key === currentLetter) {
                 // Correct
                 correctAnswers++;
+                scoreDisplay.textContent = correctAnswers;
                 
-                // Diminuer taille (rendre plus difficile)
                 if (letterSize > minSize) {
-                    letterSize = Math.max(minSize, letterSize - 10);
+                    letterSize -= 5;
                     letterSizeInput.value = letterSize;
                 }
             } else {
@@ -229,9 +230,8 @@
                 errors++;
                 errorDisplay.textContent = errors;
                 
-                // Augmenter taille (rendre plus facile)
                 if (letterSize < maxSize) {
-                    letterSize = Math.min(maxSize, letterSize + 10);
+                    letterSize += 10;
                     letterSizeInput.value = letterSize;
                 }
             }
@@ -241,35 +241,34 @@
             
             // Mise à jour temps
             if (startTime) {
-                const elapsed = (now - startTime) / 1000;
-                timeDisplay.textContent = elapsed.toFixed(1);
+                const elapsed = Math.floor((now - startTime) / 1000);
+                debugBox.textContent = `Temps: ${elapsed}s | Dist: --`;
             }
-            
-            // Log debug
-            debugBox.innerHTML = `Dernière: ${key} ${key === currentLetter ? '✓' : '✗'} | Size: ${letterSize}px | Acuity: ${acuityDisplay.textContent}`;
         }
         
-        // Mise à jour acuité depuis taille lettre (SANS distance)
         function updateAcuityFromSize() {
-            // Calcul acuité uniquement depuis la taille de la lettre
-            const screenDPI = window.screen.width / (window.screen.widthInches || 10);
-            const sizeInches = letterSize / screenDPI;
-            // Acuité = 1 / (angle visuel en minutes d'arc)
-            // Pour un optotype standard (5x5), la hauteur correspond à 5 minutes d'arc à 1 minute
-            const acuity = 1 / (sizeInches * 2.9); // Approximation
-            acuityDisplay.textContent = Math.max(0.1, Math.min(2.0, acuity)).toFixed(2);
+            // Calcul approximatif de l'acuité (basé sur la taille des lettres en mm)
+            const sizeInMm = letterSize / screenDPI * 25.4;
+            const acuity = Math.round(10 / (sizeInMm / 5)) * 10 / 10;
+            acuityDisplay.textContent = Math.max(1, Math.min(20, acuity)) + '/10';
             sizeDisplay.textContent = letterSize;
         }
         
-        // Affichage lettre
+        // Affichage lettre - CORRIGÉ : la lettre disparaît toujours après le délai
         function showLetter() {
+            // Annuler le timeout précédent si existant
+            if (showLetterTimeout) {
+                clearTimeout(showLetterTimeout);
+            }
+            
+            // Nouvelle lettre aléatoire
             currentLetter = letters[Math.floor(Math.random() * letters.length)];
             letterDisplay.textContent = currentLetter;
             letterDisplay.style.fontSize = letterSize + 'px';
             letterDisplay.style.opacity = 1;
             
-            // Masquer après délai court
-            setTimeout(() => {
+            // Masquer après délai - fonctionne même après erreur
+            showLetterTimeout = setTimeout(() => {
                 letterDisplay.style.opacity = 0;
                 currentLetter = '';
             }, 1500);
@@ -278,7 +277,9 @@
         // Initialisation FaceMesh
         async function initFaceMesh() {
             faceMesh = new FaceMesh({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+                }
             });
             
             faceMesh.setOptions({
@@ -293,7 +294,7 @@
             camera = new Camera(video, {
                 onFrame: async () => {
                     if (faceMesh && isRunning) {
-                        await faceMesh.send({ image: video });
+                        await faceMesh.send({image: video});
                     }
                 },
                 width: 640,
@@ -303,37 +304,38 @@
             await camera.start();
         }
         
-        // Traitement résultats FaceMesh
+        // Traitement résultats FaceMesh - CORRIGÉ : suppression de l'adaptation de taille basée sur la distance
         function onFaceMeshResults(results) {
             if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                 const landmarks = results.multiFaceLandmarks[0];
                 
-                // Calcul distance (affichée mais PLUS utilisée pour adaptation)
                 const nose = landmarks[1];
                 const leftEye = landmarks[33];
                 const rightEye = landmarks[263];
                 
+                // Distance des yeux en pixels (approximatif)
                 const eyeDistancePx = Math.hypot(
-                    (leftEye.x - rightEye.x) * video.videoWidth,
-                    (leftEye.y - rightEye.y) * video.videoHeight
+                    rightEye.x * video.videoWidth - leftEye.x * video.videoWidth,
+                    rightEye.y * video.videoHeight - leftEye.y * video.videoHeight
                 );
                 
-                // Distance approx: 5.5cm = distance inter-pupillaire moyenne
-                // 63.7 = constante proportionnelle pour écran standard
-                const distance = Math.round(63.7 / eyeDistancePx * 100);
+                // Estimation distance visage (en cm) -只是一种近似
+                const realEyeDistanceCm = 6.5;
+                const focalLength = 800;
+                const distance = Math.round((realEyeDistanceCm * focalLength) / eyeDistancePx);
                 
-                // Affichage distance (pour info uniquement)
+                // Affichage debug UNIQUEMENT - pas d'adaptation de taille
                 if (distance > 20 && distance < 200) {
-                    distanceDisplay.textContent = distance;
+                    debugBox.textContent = `Dist: ${distance}cm | Taille: ${letterSize}px`;
                 }
                 
                 lastFaceData = { distance, eyeDistancePx };
             }
         }
         
-        // Mise à jour paramètres (simplifiée - plus de calculateSize)
         function updateParams() {
-            // La distance est calculée et affichée dans loop() mais n'est plus utilisée ici
+            // Pas d'adaptation de la taille basée sur la distance
+            // La taille est gérée uniquement par les boutons + / - et les réponses utilisateur
             updateAcuityFromSize();
         }
         
@@ -342,8 +344,7 @@
             if (isRunning) {
                 updateParams();
                 
-                // Si pas de lettre affichée et assez de temps passé, en afficher une
-                if (!currentLetter && Math.random() < 0.02) {
+                if (!currentLetter) {
                     showLetter();
                 }
             }
@@ -367,7 +368,7 @@
                 setTimeout(showLetter, 1000);
             } catch (err) {
                 console.error('Erreur:', err);
-                alert('Erreur caméra: ' + err.message);
+                debugBox.textContent = 'Erreur caméra: ' + err.message;
             }
         };
         
