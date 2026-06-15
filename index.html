@@ -25,7 +25,6 @@
         .stat { font-size: 12px; margin: 2px 0; color: #0f0; font-family: monospace; }
         .error { color: #f55; }
 
-        /* Jauge de vitesse */
         .speed-gauge {
             height: 6px; background: #333; margin-top: 5px; border-radius: 3px; overflow: hidden;
         }
@@ -152,27 +151,24 @@
         let keyboard = document.getElementById('keyboard');
         let waitingMessage = document.getElementById('waitingMessage');
 
-        // Paramètres
         let acuity = 1.0;
         let screenDPI = 300;
         let calibrationFactor = 1.0;
         let letterSizePx = 80;
 
-        // Tracking
         let lastHeadPos = null;
         let lastTime = 0;
         let speed = 0;
         let smoothedSpeed = 0;
         let distance = 50;
         let rawDistance = 50;
-        let state = 'IDLE'; // IDLE, WAITING_VALIDATION
+        let state = 'IDLE';
         let lastFlashTime = 0;
         let currentDisplayedLetter = null;
         let flashTimeout = null;
 
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
 
-        // ----------------- CLAVIER -----------------
         function initKeyboard() {
             keyboard.innerHTML = '';
             const lettersSorted = [...letters].sort();
@@ -185,7 +181,6 @@
             });
         }
 
-        // ----------- VALIDATION LETTRE -------------
         function validateLetter(letter) {
             if (state !== 'WAITING_VALIDATION') return;
 
@@ -201,11 +196,9 @@
             if (!clickedKey) return;
 
             if (letter === currentDisplayedLetter) {
-                // SUCCÈS : lettre plus petite
                 clickedKey.classList.add('validated');
                 letterSizePx = Math.max(20, letterSizePx - 5);
             } else {
-                // ÉCHEC : lettre plus grande
                 clickedKey.classList.add('invalid');
                 letterSizePx = Math.min(300, letterSizePx + 5);
             }
@@ -214,7 +207,6 @@
             updateAcuityFromSize();
             updateLetterDisplay();
 
-            // disparition et reset
             letterEl.style.opacity = '0';
             currentDisplayedLetter = null;
             state = 'IDLE';
@@ -222,7 +214,6 @@
             updateStats();
         }
 
-        // -------------- CALIBRATION ----------------
         function toggleCalib() {
             const panel = document.getElementById('calibPanel');
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -252,7 +243,6 @@
             }
         }
 
-        // --------- GESTION TAILLE LETTRES ----------
         function updateLetterSizeFromInput() {
             const newSize = parseInt(letterSizeInputEl.value);
             if (!isNaN(newSize) && newSize >= 20 && newSize <= 300) {
@@ -283,7 +273,6 @@
             letterSizeValueEl.innerText = letterSizePx;
         }
 
-        // ---------------- DEMARRAGE ----------------
         async function startApp() {
             loadCalib();
             initKeyboard();
@@ -314,7 +303,6 @@
             }
         }
 
-        // --------------- BOUCLE IA -----------------
         async function loop() {
             if (!model) return;
 
@@ -323,18 +311,18 @@
             if (predictions.length > 0) {
                 const face = predictions;
 
-                // BlazeFace landmarks:
-                // 0: right eye, 1: left eye, 2: nose, 3: mouth, 4: right ear, 5: left ear
+                // BlazeFace:
+                // landmarks = right eye, [1] = left eye, [2] = nose, [3] = mouth, [4] = right ear, [5] = left ear
                 const rightEye = face.landmarks; // [x, y]
-                const leftEye  = face.landmarks[1]; // [x, y]
-                const nose     = face.landmarks[2]; // [x, y]
+                const leftEye  = face.landmarks[1];
+                const nose     = face.landmarks[2];
 
-                // 1. DISTANCE (via distance inter-yeux)
+                // 1. Distance via distance inter‑yeux
                 const dxEyes = rightEye - leftEye;
                 const dyEyes = rightEye[1] - leftEye[1];
                 const distInterYeuxPx = Math.sqrt(dxEyes * dxEyes + dyEyes * dyEyes);
 
-                const K_FACTOR = 2800; // constante empirique
+                const K_FACTOR = 2800;
                 if (distInterYeuxPx > 5) {
                     let calculatedDist = K_FACTOR / distInterYeuxPx;
                     rawDistance = calculatedDist;
@@ -342,17 +330,17 @@
                     distance = Math.max(30, Math.min(120, distance));
                 }
 
-                // 2. VITESSE (mouvements de tête)
+                // 2. Vitesse du nez
                 const now = performance.now();
                 if (lastHeadPos) {
-                    const dt = (now - lastTime);
+                    const dt = now - lastTime;
                     if (dt > 16) {
                         const dx = nose - lastHeadPos.x;
                         const dy = nose[1] - lastHeadPos.y;
                         const distPx = Math.sqrt(dx * dx + dy * dy);
-                        let rawSpeed = distPx / dt; // px/ms
+                        const rawSpeed = distPx / dt;  // px/ms
                         smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
-                        speed = smoothedSpeed * 1000; // px/s
+                        speed = smoothedSpeed * 1000;  // px/s
                     }
                 }
                 lastHeadPos = { x: nose, y: nose[1] };
@@ -361,18 +349,18 @@
                 handleState(speed, now);
                 updateStats();
             } else {
-                smoothedSpeed = smoothedSpeed * 0.9;
+                smoothedSpeed *= 0.9;
                 speed = smoothedSpeed * 1000;
                 updateStats();
             }
+
             requestAnimationFrame(loop);
         }
 
-        // ------------ MACHINE D'ÉTAT --------------
         function handleState(currentSpeed, now) {
-            const minSpeedTrigger = 150;   // seuil de déclenchement
-            const flashDuration = 60;      // 60 ms
-            const cooldownDuration = 1000; // 1 s entre deux lettres
+            const minSpeedTrigger = 150;
+            const flashDuration = 60;
+            const cooldownDuration = 1000;
 
             if (state === 'IDLE') {
                 if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
@@ -393,10 +381,8 @@
                     }, flashDuration);
                 }
             }
-            // En WAITING_VALIDATION, on ignore les mouvements de tête
         }
 
-        // ----------- CALCUL TAILLE OPTIQUE --------
         function calculateSize(distCm, acuityDecimal) {
             let heightCm = (distCm * 0.0145) / acuityDecimal;
             let heightPx = (heightCm / 2.54) * screenDPI;
