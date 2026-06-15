@@ -51,7 +51,6 @@
             display: flex; justify-content: center; align-items: center; width: 12mm;
         }
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
-        /* Contrôle pour la taille des lettres */
         #letterSizeControl {
             position: absolute; top: 10px; right: 10px; z-index: 20;
             background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
@@ -80,7 +79,6 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
-        /* Clavier virtuel - CORRIGÉ pour 2 lignes */
         #keyboard {
             position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
@@ -153,7 +151,6 @@
         </div>
     </div>
 
-    <!-- Contrôle pour la taille des lettres -->
     <div id="letterSizeControl" style="display:none;">
         <div id="letterSizeLabel">Taille lettre (px)</div>
         <div id="letterSizeValue">80</div>
@@ -164,12 +161,9 @@
         </div>
     </div>
 
-    <!-- Clavier virtuel -->
     <div id="keyboard" style="display:none;">
-        <!-- Les touches seront générées par JavaScript -->
     </div>
 
-    <!-- Message d'attente -->
     <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div><script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
@@ -265,17 +259,49 @@
                     clickedKey.classList.add('invalid');
                     errorCount++;
 
+                    // La lettre disparaît immédiatement
+                    letterEl.style.opacity = '0';
+
                     if (errorCount >= 3) {
-                        // 3ème erreur consécutive → augmenter la taille de 5px
+                        // 3ème erreur → augmenter la taille de la prochaine lettre de 5px
                         currentLetterSize = Math.min(300, currentLetterSize + 5);
                         letterSizePx = currentLetterSize;
                         errorCount = 0; // Réinitialiser le compteur
                     }
 
-                    // Rester en mode WAITING_VALIDATION pour que l'utilisateur réessaye
-                    // La même lettre reste affichée avec la même taille
+                    state = 'IDLE';
+                    waitingMessage.style.display = 'none';
                 }
             }
+        }
+
+        // --- AFFICHAGE D'UNE NOUVELLE LETTRE ---
+        function displayNewLetter() {
+            if (state !== 'IDLE') return;
+
+            // Réinitialiser le compteur d'erreurs à chaque nouvelle lettre
+            errorCount = 0;
+
+            // Choisir une lettre aléatoire
+            const randomIndex = Math.floor(Math.random() * letters.length);
+            currentDisplayedLetter = letters[randomIndex];
+
+            // Afficher la lettre
+            letterEl.textContent = currentDisplayedLetter;
+            letterEl.style.fontSize = currentLetterSize + 'px';
+            letterEl.style.opacity = '1';
+
+            state = 'WAITING_VALIDATION';
+            waitingMessage.style.display = 'block';
+
+            // Disparaître automatiquement après 5 secondes si pas de validation
+            flashTimeout = setTimeout(() => {
+                if (state === 'WAITING_VALIDATION') {
+                    letterEl.style.opacity = '0';
+                    state = 'IDLE';
+                    waitingMessage.style.display = 'none';
+                }
+            }, 5000);
         }
 
         // --- CALIBRATION ---
@@ -358,6 +384,7 @@
                     screenDPI = baseDPI * calibrationFactor;
 
                     updateLetterDisplay();
+                    displayNewLetter(); // Afficher la première lettre
                     loop();
                 };
             } catch (err) {
@@ -386,7 +413,44 @@
                 if (distInterYeuxPx > 5) {
                     let calculatedDist = K_FACTOR / distInterYeuxPx;
                     rawDistance = calculatedDist;
-                    distance = (distance * 0.9) + (rawDist[...]teSizePx = Math.round(calculateSize(distance, acuity));
+                    distance = (distance * 0.9) + (rawDistance * 0.1);
+                }
+
+                // 2. VITESSE
+                const now = Date.now();
+                if (lastHeadPos && now - lastTime > 100) {
+                    const dx = nose[0] - lastHeadPos[0];
+                    const dy = nose[1] - lastHeadPos[1];
+                    const dt = (now - lastTime) / 1000;
+                    speed = Math.sqrt(dx*dx + dy*dy) / dt;
+                    smoothedSpeed = (smoothedSpeed * 0.9) + (speed * 0.1);
+                    lastTime = now;
+                }
+                lastHeadPos = [...nose];
+
+                // 3. AFFICHAGE
+                updateStats();
+
+                // Afficher une nouvelle lettre si on est en IDLE
+                if (state === 'IDLE' && smoothedSpeed < 50) {
+                    displayNewLetter();
+                }
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        // --- CALCUL TAILLE OPTIQUE ---
+        function calculateSize(distCm, acuityDecimal) {
+            let heightCm = (distCm * 0.0145) / acuityDecimal;
+            let heightPx = (heightCm / 2.54) * screenDPI;
+            return Math.max(20, Math.round(heightPx));
+        }
+
+        function updateParams() {
+            acuity = parseFloat(document.getElementById('acuity').value);
+            document.getElementById('valAcuity').innerText = acuity.toFixed(1);
+            letterSizePx = Math.round(calculateSize(distance, acuity));
             currentLetterSize = letterSizePx;
             updateLetterDisplay();
             letterSizeInputEl.value = letterSizePx;
