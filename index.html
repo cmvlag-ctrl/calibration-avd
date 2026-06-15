@@ -80,7 +80,7 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
-        /* Clavier virtuel */
+        /* Clavier virtuel - CORRIGÉ pour 2 lignes */
         #keyboard {
             position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
@@ -202,7 +202,6 @@
         let lastFlashTime = 0;
         let currentDisplayedLetter = null;
         let flashTimeout = null;
-        let errorFlag = false; // Nouveau flag pour gérer les erreurs
 
         // Liste des lettres (valeur fixe)
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
@@ -221,7 +220,7 @@
             });
         }
 
-        // --- VALIDATION D'UNE LETTRE (CORRIGÉE) ---
+        // --- VALIDATION D'UNE LETTRE (MODIFIÉE) ---
         function validateLetter(letter) {
             if (state !== 'WAITING_VALIDATION') return;
 
@@ -244,8 +243,7 @@
             if (clickedKey) {
                 if (letter === currentDisplayedLetter) {
                     clickedKey.classList.add('validated');
-                    letterEl.style.opacity = '0';
-                    waitingMessage.style.display = 'none';
+                    letterEl.style.opacity = '0'; // Faire disparaître immédiatement
 
                     // Réduire la taille de la lettre suivante de 5px après validation réussie
                     letterSizePx = Math.max(20, letterSizePx - 5);
@@ -257,10 +255,9 @@
                     updateStats();
 
                     state = 'IDLE';
-                    errorFlag = false;
+                    waitingMessage.style.display = 'none';
                 } else {
                     clickedKey.classList.add('invalid');
-                    errorFlag = true; // On marque qu'il y a eu une erreur
 
                     // Augmenter la taille de la lettre de 5px après une erreur
                     letterSizePx = Math.min(300, letterSizePx + 5);
@@ -269,11 +266,24 @@
 
                     updateAcuityFromSize();
                     updateLetterDisplay();
-
-                    // On reste en WAITING_VALIDATION mais on masque la lettre
-                    letterEl.style.opacity = '0';
-                    waitingMessage.style.display = 'none';
                     updateStats();
+
+                    // MODIFICATION PRINCIPALE : Remettre à IDLE pour permettre une nouvelle tentative
+                    state = 'IDLE';
+                    waitingMessage.style.display = 'none';
+
+                    // Afficher immédiatement une nouvelle lettre
+                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
+                    letterEl.innerText = currentDisplayedLetter;
+                    letterEl.style.opacity = '1';
+                    waitingMessage.style.display = 'block';
+
+                    // Disparaît automatiquement après 60ms
+                    flashTimeout = setTimeout(() => {
+                        if (state === 'WAITING_VALIDATION') {
+                            letterEl.style.opacity = '0';
+                        }
+                    }, 60);
                 }
             }
         }
@@ -416,9 +426,10 @@
             requestAnimationFrame(loop);
         }
 
-        // --- MACHINE D'ÉTAT (CORRIGÉE) ---
+        // --- MACHINE D'ÉTAT MODIFIÉE ---
         function handleState(currentSpeed, now) {
             const minSpeedTrigger = 150;
+            const flashDuration = 60; // Valeur fixe à 60ms
             const cooldownDuration = 1000;
 
             if (state === 'IDLE') {
@@ -428,18 +439,19 @@
                     currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
                     letterEl.innerText = currentDisplayedLetter;
                     letterEl.style.opacity = '1';
+
                     waitingMessage.style.display = 'block';
 
                     // Disparaît automatiquement après 60ms
                     flashTimeout = setTimeout(() => {
                         if (state === 'WAITING_VALIDATION') {
                             letterEl.style.opacity = '0';
+                            // On reste en WAITING_VALIDATION jusqu'à validation
                         }
-                    }, 60);
+                    }, flashDuration);
                 }
             }
             // Dans l'état WAITING_VALIDATION, on ignore les mouvements de tête
-            // Sauf si on vient d'une erreur (errorFlag), alors on reste en WAITING_VALIDATION
         }
 
         // --- CALCUL TAILLE OPTIQUE ---
