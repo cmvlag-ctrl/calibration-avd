@@ -2,555 +2,306 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Acuité Dynamique</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Acuité Dynamique - Test Final</title>
     <style>
-        video {
-            display: none;
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            color: white;
+            touch-action: manipulation;
         }
+
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.2;
+            z-index: 1;
+            transform: scaleX(-1);
+        }
+
         #letterDisplay {
-            position: absolute; top: 50%; left: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 80px;
+            font-size: 100px;
             font-weight: bold;
             color: white;
-            text-shadow: 0 0 10px black;
-            z-index: 1000;
+            opacity: 0; /* ← Masquée par défaut */
+            z-index: 1000; /* ← Toujours au-dessus */
             pointer-events: none;
+            text-shadow: 0 0 15px black, 0 0 15px black;
+            transition: opacity 0.3s ease;
         }
+
         #ui {
-            max-width: 300px;
-        }
-        .error { color: #f55; }
-
-        /* Jauge de vitesse */
-        .speed-gauge {
-        }
-        .speed-bar {
-            transition: width 0.1s linear;
-        }
-        button {
-            background: #444;
-            border: none;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        #startOverlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #1a1a2e;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-        }
-        #calibPanel {
-        }
-        .calib-bar-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 20;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 320px;
+            box-shadow: 0 0 20px rgba(0, 200, 255, 0.3);
+            display: none; /* ← Masqué au démarrage */
         }
 
-        /* Contrôle pour la taille des lettres */
-        #letterSizeControl {
-            width: 120px;
-            text-align: center;
-        }
-        #letterSizeLabel {
-            font-size: 11px; margin-bottom: 5px;
-        }
-        #letterSizeValue {
-            color: #4ecdc4;
-        }
-        .size-control-buttons {
-        }
-        .size-btn {
-            background: #444;
-            border: none;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .size-btn:hover {
-            background: #777;
-        }
-        #letterSizeInput {
-            font-family: monospace;
+        .stat {
+            font-size: 14px;
+            margin: 8px 0;
+            color: #0ff;
+            font-family: 'Courier New', monospace;
         }
 
-        /* Clavier virtuel */
+        .error {
+            color: #ff5555;
+        }
+
         #keyboard {
-            display: flex;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none; /* ← Masqué au démarrage */
             flex-wrap: wrap;
-            width: 90%; max-width: 550px;
+            justify-content: center;
+            z-index: 30;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 15px;
+            gap: 8px;
+            width: 90%;
+            max-width: 550px;
         }
+
         .key {
-            width: 40px; height: 40px; margin: 3px;
-            background: #333; border: 1px solid #555;
-            color: white; font-size: 18px;
+            padding: 12px 20px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
             transition: all 0.2s;
         }
+
         .key:hover {
             background: #555;
             transform: scale(1.1);
         }
-        .key.validated {
-            background: #28a745;
-        }
-        .key.invalid {
-            background: #dc3545;
-            cursor: not-allowed;
-        }
-        #waitingMessage {
-            position: fixed; bottom: 10px; left: 50%;
-            transform: translateX(-50%);
-            z-index: 31;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 8px 15px;
-            border-radius: 4px;
-            white-space: nowrap;
+
+        #startOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
         }
 
-        /* Écran de résultats final */
-        #resultsScreen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
+        button {
+            background: #4ecdc4;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            margin: 10px;
+            transition: background 0.3s;
         }
+
+        button:hover {
+            background: #28a745;
+        }
+
+        #resultsScreen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 100; /* ← Sous la lettre */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+        }
+
         #resultsScreen h2 {
-            color: #4ecdc4;
+            color: #0ff;
             margin-bottom: 20px;
         }
-        #resultsContent {
-            background: #222;
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
-            max-width: 400px;
-        }
-        #resultsContent p {
+
+        .result-item {
             margin: 10px 0;
-            color: white;
-        }
-        #restartBtn {
-            margin-top: 20px;
-            padding: 10px 30px;
-            font-size: 16px;
-            background: #4ecdc4;
-            color: #1a1a2e;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+            font-size: 18px;
         }
     </style>
 </head>
 <body>
-<div id="startOverlay">
-        <h1>Test Acuité (Pro)</h1>
-        <p>Détection de vitesse optimisée.</p>
-        <button id="startBtn" onclick="startApp()">Commencer</button>
+    <!-- Écran de démarrage -->
+    <div id="startOverlay">
+        <h1>Acuité Dynamique</h1>
+        <p>Test de détection visuelle avec suivi de tête.</p>
+        <button id="startButton">COMMENCER LE TEST</button>
         <p id="errorMsg" class="error"></p>
     </div>
 
+    <!-- Vidéo en arrière-plan -->
+    <video id="video" playsinline autoplay muted></video>
+
+    <!-- Affichage de la lettre (masquée par défaut) -->
     <div id="letterDisplay">A</div>
 
-    <div id="ui" style="display:none;">
-        <div class="speed-gauge">
-            Vitesse: <span id="speedVal">0</span> px/s
-            <div class="speed-bar-container">
-                <div id="speedBar" class="speed-bar"></div>
-            </div>
-        </div>
-        <hr style="border-color:#333; margin: 5px 0;">
-        <div>
-            Acuité: <span id="valAcuity">1.0</span>
-        </div>
-
-        <div id="calibPanel">
-            <div class="calib-bar-container">
-                <button onclick="toggleCalib()">Calibrer</button>
-                <input type="range" id="calibRange" min="100" max="400" value="300" oninput="updateCalib()">
-                <span id="calibVal">300</span>
-            </div>
-        </div>
+    <!-- Interface utilisateur (masquée au démarrage) -->
+    <div id="ui">
+        <div class="stat">Vitesse: <span id="statusSpeed">0</span></div>
+        <div class="stat">Distance: <span id="statusDist">-- cm</span></div>
+        <div class="stat">Taille lettre: <span id="statusSize">-- px</span></div>
     </div>
 
-    <!-- Contrôle pour la taille des lettres -->
-    <div id="letterSizeControl" style="display:none;">
-        <div id="letterSizeValue">80</div>
-        <div class="size-control-buttons">
-            <button class="size-btn" onclick="adjustLetterSize(-5)">-</button>
-            <input type="number" id="letterSizeInput" value="80" onchange="updateLetterSizeFromInput()">
-            <button class="size-btn" onclick="adjustLetterSize(5)">+</button>
-        </div>
-    </div>
-
-    <!-- Clavier virtuel -->
-    <div id="keyboard" style="display:none;">
-    </div>
-
-    <!-- Message d'attente -->
-    <div id="waitingMessage" style="display:none;">Cliquez sur la lettre</div>
+    <!-- Clavier virtuel (masqué au démarrage) -->
+    <div id="keyboard"></div>
 
     <!-- Écran de résultats final -->
     <div id="resultsScreen">
-        <h2>Résultats du Test</h2>
-        <div id="resultsContent">
-            <p><strong>Taille minimale atteinte:</strong> <span id="resultMinSize">80</span> px</p>
-            <p><strong>Acuité:</strong> <span id="resultAcuity">1.0</span></p>
-            <p><strong>Essais:</strong> <span id="resultTotal">0</span></p>
-            <p><strong>Bonnes réponses:</strong> <span id="resultCorrect">0</span></p>
-            <p><strong>Taux de réussite:</strong> <span id="resultRate">0</span>%</p>
-            <p><strong>Erreurs consécutives:</strong> <span id="resultErrors">0</span></p>
-        </div>
-        <button id="restartBtn" onclick="restartTest()">Recommencer</button>
+        <h2>TEST TERMINÉ</h2>
+        <div class="result-item">Essais totaux: <span id="finalTrials">0</span></div>
+        <div class="result-item">Réussites: <span id="finalCorrect">0</span></div>
+        <div class="result-item">Précision: <span id="finalAccuracy">0%</span></div>
+        <div class="result-item">Taille min: <span id="finalMinSize">80</span> px</div>
+        <div class="result-item">Erreurs consécutives: <span id="finalConsecutiveErrors">0</span></div>
+        <button id="restartButton">RECOMMENCER</button>
     </div>
 
-<script>
-    let model = null;
-    let video = document.getElementById('video');
-    let ui = document.getElementById('ui');
-    let overlay = document.getElementById('startOverlay');
-    let letterEl = document.getElementById('letterDisplay');
-    let keyboard = document.getElementById('keyboard');
-    let letterSizeValueEl = document.getElementById('letterSizeValue');
-    let letterSizeInputEl = document.getElementById('letterSizeInput');
-    let waitingMessage = document.getElementById('waitingMessage');
-    let resultsScreen = document.getElementById('resultsScreen');
+    <script>
+        // ========== INITIALISATION ==========
+        const video = document.getElementById('video');
+        const letterEl = document.getElementById('letterDisplay');
+        const ui = document.getElementById('ui');
+        const startOverlay = document.getElementById('startOverlay');
+        const keyboard = document.getElementById('keyboard');
+        const resultsScreen = document.getElementById('resultsScreen');
+        const errorMsg = document.getElementById('errorMsg');
 
-    // Paramètres
-    let acuity = 1.0;
-    let screenDPI = 300;
-    let calibrationFactor = 1.0;
-    let letterSizePx = 80;
+        // Statistiques
+        let totalTrials = 0;
+        let correctAnswers = 0;
+        let consecutiveErrors = 0;
+        let state = 'IDLE'; // IDLE, WAITING_VALIDATION, ENDED
+        let currentLetter = 'A';
+        let letterSizePx = 80;
+        let speed = 0;
+        let distance = 50;
 
-    // Tracking
-    let lastHeadPos = null;
-    let lastTime = 0;
-    let speed = 0;
-    let smoothedSpeed = 0;
-    let distance = 50;
-    let rawDistance = 50;
-    let state = 'IDLE'; // IDLE, WAITING_VALIDATION
-    let lastFlashTime = 0;
-    let currentDisplayedLetter = null;
-    let flashTimeout = null;
+        // Liste des lettres
+        const letters = "D F P V A N L C O E R U S Z H".split(" ");
 
-    // Compteur d'erreurs consécutives
-    let consecutiveErrors = 0;
-    const MAX_CONSECUTIVE_ERRORS = 3;
-
-    // Statistiques
-    let totalAttempts = 0;
-    let correctAnswers = 0;
-
-    // Liste des lettres (valeur fixe)
-    const letters = ['A', 'C', 'D', 'E', 'F', 'H', 'K', 'M', 'N', 'O', 'P', 'R', 'T', 'U', 'V', 'X', 'Z'];
-
-// --- INITIALISATION DU CLAVIER ---
-function initKeyboard() {
-    keyboard.innerHTML = '';
-    const lettersSorted = [...letters].sort();
-
-    lettersSorted.forEach(letter => {
-        const key = document.createElement('button');
-        key.className = 'key';
-        key.textContent = letter;
-        key.onclick = () => validateLetter(letter);
-        keyboard.appendChild(key);
-    });
-}
-
-// --- VALIDATION D'UNE LETTRE ---
-function validateLetter(letter) {
-    if (state !== 'WAITING_VALIDATION') return;
-
-    // Effacer le timeout de disparition automatique
-    if (flashTimeout) {
-        clearTimeout(flashTimeout);
-        flashTimeout = null;
-    }
-
-    const keys = document.querySelectorAll('.key');
-
-    // Réinitialiser tous les styles
-    keys.forEach(k => {
-        k.classList.remove('validated', 'invalid');
-    });
-
-    // Trouver la touche cliquée
-    const clickedKey = Array.from(keys).find(k => k.textContent === letter);
-
-    if (clickedKey) {
-        totalAttempts++;
-
-        if (letter === currentDisplayedLetter) {
-            // SUCCÈS
-            clickedKey.classList.add('validated');
-            correctAnswers++;
-            consecutiveErrors = 0;
-        } else {
-            // ÉCHEC
-            clickedKey.classList.add('invalid');
-            consecutiveErrors++;
-
-            // Agrandir la lettre de 5px en cas d'erreur
-            letterSizePx += 5;
-            letterEl.style.fontSize = letterSizePx + 'px';
-            letterSizeValueEl.innerText = letterSizePx;
-            letterSizeInputEl.value = letterSizePx;
-            updateAcuityFromSize();
-
-            // Vérifier si 3 erreurs consécutives
-            if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                endTest();
-                return;
-            }
+        // ========== FONCTIONS DE BASE ==========
+        function initKeyboard() {
+            keyboard.innerHTML = '';
+            letters.forEach(letter => {
+                const key = document.createElement('button');
+                key.className = 'key';
+                key.textContent = letter;
+                key.onclick = () => validateLetter(letter);
+                keyboard.appendChild(key);
+            });
         }
 
-        updateStats();
-
-        // Faire disparaître immédiatement
-        letterEl.style.opacity = '0';
-        state = 'IDLE';
-        waitingMessage.style.display = 'none';
-    }
-}
-
-// --- FIN DU TEST ---
-function endTest() {
-    // Arrêter la boucle principale
-    if (model) {
-        model = null;
-    }
-
-    // Calculer les statistiques finales
-    const rate = totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0;
-
-    // Mettre à jour l'écran de résultats
-    document.getElementById('resultMinSize').innerText = letterSizePx;
-    document.getElementById('resultAcuity').innerText = acuity.toFixed(2);
-    document.getElementById('resultTotal').innerText = totalAttempts;
-    document.getElementById('resultCorrect').innerText = correctAnswers;
-    document.getElementById('resultRate').innerText = rate;
-    document.getElementById('resultErrors').innerText = consecutiveErrors;
-
-    // Afficher l'écran de résultats
-    resultsScreen.style.display = 'flex';
-}
-
-// --- REDÉMARRAGE ---
-function restartTest() {
-    // Masquer l'écran de résultats
-    resultsScreen.style.display = 'none';
-
-    // Réinitialiser les variables
-    consecutiveErrors = 0;
-    totalAttempts = 0;
-    correctAnswers = 0;
-    letterSizePx = 80;
-    acuity = 1.0;
-    state = 'IDLE';
-
-    // Réinitialiser l'affichage
-    letterEl.style.fontSize = '80px';
-    letterEl.style.opacity = '0';
-    letterSizeValueEl.innerText = '80';
-    letterSizeInputEl.value = '80';
-    waitingMessage.style.display = 'none';
-
-    // Réinitialiser le clavier
-    document.querySelectorAll('.key').forEach(k => {
-        k.classList.remove('validated', 'invalid');
-    });
-
-    updateStats();
-
-    // Relancer la boucle principale
-    loop();
-}
-
-// --- CALIBRATION ---
-function toggleCalib() {
-}
-function updateCalib() {
-}
-function saveCalib() {
-    updateStats();
-}
-function loadCalib() {
-    if (saved) {
-        calibrationFactor = parseFloat(saved);
-        updateCalib();
-    }
-}
-
-// --- GESTION DE LA TAILLE DES LETTRES ---
-function updateLetterSizeFromInput() {
-    const newSize = parseInt(letterSizeInputEl.value);
-    if (!isNaN(newSize) && newSize >= 20 && newSize <= 500) {
-        letterSizePx = newSize;
-        updateAcuityFromSize();
-        updateLetterDisplay();
-        updateStats();
-    }
-    letterSizeInputEl.value = letterSizePx;
-}
-
-function adjustLetterSize(delta) {
-    letterSizePx = Math.max(20, Math.min(500, letterSizePx + delta));
-    letterSizeInputEl.value = letterSizePx;
-    updateAcuityFromSize();
-    updateLetterDisplay();
-    updateStats();
-}
-
-function updateAcuityFromSize() {
-    const heightCm = (distance * 0.0145) / acuity;
-    const heightPx = (heightCm / 2.54) * screenDPI;
-    letterSizePx = Math.max(20, Math.round(heightPx));
-    acuity = Math.max(0.1, Math.min(2.0, acuity));
-}
-
-function updateLetterDisplay() {
-    letterSizeValueEl.innerText = letterSizePx;
-    letterEl.style.fontSize = letterSizePx + 'px';
-}
-
-// --- DÉMARRAGE ---
-async function startApp() {
-    loadCalib();
-    initKeyboard();
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user', width: 640, height: 480 }
-        });
-        video.srcObject = stream;
-        video.onloadedmetadata = async () => {
-            overlay.style.display = 'none';
+        function startTest() {
+            startOverlay.style.display = 'none';
             ui.style.display = 'block';
-            letterSizeControl.style.display = 'block';
             keyboard.style.display = 'flex';
-            video.play();
-            model = await blazeface.load();
+            state = 'IDLE';
+            totalTrials = 0;
+            correctAnswers = 0;
+            consecutiveErrors = 0;
+            letterSizePx = 80;
+            updateStats();
+        }
 
-            const dpr = window.devicePixelRatio || 1;
-            screenDPI = baseDPI * calibrationFactor;
+        function validateLetter(letter) {
+            if (state !== 'WAITING_VALIDATION') return;
+
+            totalTrials++;
+            if (letter === currentLetter) {
+                correctAnswers++;
+                consecutiveErrors = 0;
+                // Réduire la taille de la lettre
+                letterSizePx = Math.max(20, letterSizePx - 2);
+            } else {
+                consecutiveErrors++;
+                // Augmenter la taille de la lettre
+                letterSizePx = Math.min(300, letterSizePx + 2);
+            }
 
             updateLetterDisplay();
-            loop();
-        };
-    } catch (err) {
-        console.error(err);
-    }
-}
+            updateStats();
+            letterEl.style.opacity = '0';
+            state = 'IDLE';
 
-// --- BOUCLE PRINCIPALE ---
-async function loop() {
-    if (!model) return;
-
-    const predictions = await model.estimateFaces(video);
-
-    if (predictions.length > 0) {
-        const face = predictions[0];
-        const nose = face.landmarks[2];
-        const leftEye = face.landmarks[0];
-        const rightEye = face.landmarks[1];
-
-        // 1. DISTANCE
-        const distInterYeuxPx = Math.sqrt(
-            Math.pow(rightEye[0] - leftEye[0], 2) +
-            Math.pow(rightEye[1] - leftEye[1], 2)
-        );
-        const K_FACTOR = 2800;
-        if (distInterYeuxPx > 5) {
-            rawDistance = calculatedDist;
-        }
-
-        // 2. VITESSE
-        const now = performance.now();
-        if (lastHeadPos) {
-            const dt = (now - lastTime);
-            if (dt > 16) {
-                const dx = nose[0] - lastHeadPos.x;
-                const dy = nose[1] - lastHeadPos.y;
-                let rawSpeed = distPx / dt;
-                speed = smoothedSpeed * 1000;
+            // Arrêt après 3 erreurs consécutives
+            if (consecutiveErrors >= 3) {
+                endTest();
             }
         }
-        lastHeadPos = { x: nose[0], y: nose[1] };
-        lastTime = now;
 
-        handleState(speed, now);
-        updateStats();
-
-    } else {
-        smoothedSpeed = smoothedSpeed * 0.9;
-        speed = smoothedSpeed * 1000;
-        updateStats();
-    }
-    requestAnimationFrame(loop);
-}
-
-// --- MACHINE D'ÉTAT MODIFIÉE ---
-function handleState(currentSpeed, now) {
-    const minSpeedTrigger = 150;
-    const flashDuration = 60; // Valeur fixe à 60ms
-    const cooldownDuration = 1000;
-
-    if (state === 'IDLE') {
-        if (now - lastFlashTime > cooldownDuration && currentSpeed < minSpeedTrigger) {
-            state = 'WAITING_VALIDATION';
-            lastFlashTime = now;
-
-            if (letterChanged) {
-                letterChanged = false;
-            }
-
-            // Choisir une lettre aléatoire
-            const randomLetter = letters[Math.floor(Math.random() * letters.length)];
-            currentDisplayedLetter = randomLetter;
-            letterEl.textContent = randomLetter;
-
-            letterEl.style.opacity = '1';
-
-            waitingMessage.style.display = 'block';
-
-            // Disparaît automatiquement après 60ms
-            flashTimeout = setTimeout(() => {
-                if (state === 'WAITING_VALIDATION') {
-                    letterEl.style.opacity = '0';
-                }
-            }, flashDuration);
+        function updateLetterDisplay() {
+            currentLetter = letters[Math.floor(Math.random() * letters.length)];
+            letterEl.innerText = currentLetter;
+            letterEl.style.fontSize = letterSizePx + 'px';
         }
-    }
-}
 
-// --- CALCUL TAILLE OPTIQUE ---
-function calculateSize(distCm, acuityDecimal) {
-    let heightCm = (distCm * 0.0145) / acuityDecimal;
-    let heightPx = (heightCm / 2.54) * screenDPI;
-    return Math.max(20, Math.round(heightPx));
-}
+        function updateStats() {
+            document.getElementById('statusSpeed').textContent = Math.round(speed);
+            document.getElementById('statusDist').textContent = Math.round(distance) + ' cm';
+            document.getElementById('statusSize').textContent = letterSizePx + ' px';
+        }
 
-function updateParams() {
-    updateLetterDisplay();
-    letterSizeInputEl.value = letterSizePx;
-}
+        function endTest() {
+            state = 'ENDED';
+            const accuracy = totalTrials > 0 ? Math.round((correctAnswers / totalTrials) * 100) : 0;
 
-function updateStats() {
-    document.getElementById('speedVal').innerText = Math.round(speed);
-    document.getElementById('valAcuity').innerText = acuity.toFixed(2);
+            document.getElementById('finalTrials').textContent = totalTrials;
+            document.getElementById('finalCorrect').textContent = correctAnswers;
+            document.getElementById('finalAccuracy').textContent = `${accuracy}%`;
+            document.getElementById('finalMinSize').textContent = Math.min(80, letterSizePx);
+            document.getElementById('finalConsecutiveErrors').textContent = consecutiveErrors;
 
-    let pct = Math.min(100, (speed / 250) * 100);
-    document.getElementById('speedBar').style.width = pct + '%';
+            resultsScreen.style.display = 'flex';
+        }
 
-    const bar = document.getElementById('speedBar');
-    if(speed > 150) bar.style.background = '#f00';
-    else bar.style.background = '#4ecdc4';
-}
-</script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"8607d2a720d14b038279025b2b5a82e5","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+        // ========== GESTION DES BOUTONS ==========
+        document.getElementById('startButton').addEventListener('click', startTest);
+        document.getElementById('restartButton').addEventListener('click', () => {
+            resultsScreen.style.display = 'none';
+            startTest();
+        });
+
+        // ========== INITIALISATION ==========
+        initKeyboard();
+    </script>
 </body>
 </html>
