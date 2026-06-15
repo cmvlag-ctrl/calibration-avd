@@ -220,22 +220,18 @@
             <div class="final-stat-item">Taux global de réussite: <span class="final-stat-value" id="globalSuccessRate">--%</span></div>
             <div class="final-stat-item">Mouvements vers la <strong>droite</strong>: <span class="final-stat-value" id="rightCount">0</span> mouvements</div>
             <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="rightSuccessRate">--%</span></div>
-            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="rightMinSize">-- px</span></div>
         </div>
         <div class="final-stat-box">
             <div class="final-stat-item">Mouvements vers la <strong>gauche</strong>: <span class="final-stat-value" id="leftCount">0</span> mouvements</div>
             <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="leftSuccessRate">--%</span></div>
-            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="leftMinSize">-- px</span></div>
         </div>
         <div class="final-stat-box">
             <div class="final-stat-item">Mouvements vers le <strong>haut</strong>: <span class="final-stat-value" id="upCount">0</span> mouvements</div>
             <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="upSuccessRate">--%</span></div>
-            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="upMinSize">-- px</span></div>
         </div>
         <div class="final-stat-box">
             <div class="final-stat-item">Mouvements vers le <strong>bas</strong>: <span class="final-stat-value" id="downCount">0</span> mouvements</div>
             <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="downSuccessRate">--%</span></div>
-            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="downMinSize">-- px</span></div>
         </div>
         <button id="restartButton" onclick="restartTest()">Recommencer</button>
     </div>
@@ -282,14 +278,11 @@
 
     // Statistiques par direction
     let movements = {
-        right: { count: 0, correct: 0, minSize: Infinity },
-        left: { count: 0, correct: 0, minSize: Infinity },
-        up: { count: 0, correct: 0, minSize: Infinity },
-        down: { count: 0, correct: 0, minSize: Infinity }
+        right: { count: 0, correct: 0 },
+        left: { count: 0, correct: 0 },
+        up: { count: 0, correct: 0 },
+        down: { count: 0, correct: 0 }
     };
-
-    // Direction du dernier mouvement détecté
-    let lastMovementDirection = null;
 
     // Liste des lettres
     const letters = "D F P V A N L C O E R U S Z H".split(" ");
@@ -335,14 +328,6 @@
                 if (letterSizePx < minSuccessfulLetterSize) {
                     minSuccessfulLetterSize = letterSizePx;
                 }
-
-                // Mettre à jour la taille minimale pour la direction du dernier mouvement
-                if (lastMovementDirection && movements[lastMovementDirection]) {
-                    if (letterSizePx < movements[lastMovementDirection].minSize) {
-                        movements[lastMovementDirection].minSize = letterSizePx;
-                    }
-                }
-
             } else {
                 // Mauvaise réponse
                 clickedKey.classList.add('invalid');
@@ -377,7 +362,6 @@
         if (isCorrect) {
             movements[direction].correct++;
         }
-        lastMovementDirection = direction;
     }
 
     // --- AFFICHAGE DES STATISTIQUES FINALES ---
@@ -391,34 +375,18 @@
 
         // Mettre à jour les valeurs dans l'overlay
         document.getElementById('globalSuccessRate').textContent = `${globalSuccessRate}%`;
-
-        // Droite
         document.getElementById('rightCount').textContent = movements.right.count;
         document.getElementById('rightSuccessRate').textContent = movements.right.count > 0 ?
             `${Math.round((movements.right.correct / movements.right.count) * 100)}%` : '--%';
-        document.getElementById('rightMinSize').textContent = movements.right.minSize !== Infinity ?
-            `${movements.right.minSize} px` : '-- px';
-
-        // Gauche
         document.getElementById('leftCount').textContent = movements.left.count;
         document.getElementById('leftSuccessRate').textContent = movements.left.count > 0 ?
             `${Math.round((movements.left.correct / movements.left.count) * 100)}%` : '--%';
-        document.getElementById('leftMinSize').textContent = movements.left.minSize !== Infinity ?
-            `${movements.left.minSize} px` : '-- px';
-
-        // Haut
         document.getElementById('upCount').textContent = movements.up.count;
         document.getElementById('upSuccessRate').textContent = movements.up.count > 0 ?
             `${Math.round((movements.up.correct / movements.up.count) * 100)}%` : '--%';
-        document.getElementById('upMinSize').textContent = movements.up.minSize !== Infinity ?
-            `${movements.up.minSize} px` : '-- px';
-
-        // Bas
         document.getElementById('downCount').textContent = movements.down.count;
         document.getElementById('downSuccessRate').textContent = movements.down.count > 0 ?
             `${Math.round((movements.down.correct / movements.down.count) * 100)}%` : '--%';
-        document.getElementById('downMinSize').textContent = movements.down.minSize !== Infinity ?
-            `${movements.down.minSize} px` : '-- px';
 
         // Afficher l'overlay
         finalStatsOverlay.style.display = 'flex';
@@ -431,12 +399,11 @@
         correctLetters = 0;
         minSuccessfulLetterSize = Infinity;
         movements = {
-            right: { count: 0, correct: 0, minSize: Infinity },
-            left: { count: 0, correct: 0, minSize: Infinity },
-            up: { count: 0, correct: 0, minSize: Infinity },
-            down: { count: 0, correct: 0, minSize: Infinity }
+            right: { count: 0, correct: 0 },
+            left: { count: 0, correct: 0 },
+            up: { count: 0, correct: 0 },
+            down: { count: 0, correct: 0 }
         };
-        lastMovementDirection = null;
 
         // Réinitialiser l'affichage
         updateScore();
@@ -497,7 +464,7 @@
 
     function updateAcuityFromSize() {
         acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx);
-        acuity = Math.max(0.1, Math.min(2.0, acuity);
+        acuity = Math.max(0.1, Math.min(2.0, acuity));
         document.getElementById('acuity').value = acuity.toFixed(1);
         document.getElementById('valAcuity').innerText = acuity.toFixed(1);
     }
@@ -581,9 +548,6 @@
             lastHeadPos = { x: nose[0], y: nose[1] };
             lastTime = now;
 
-            // 3. DÉTECTION DE LA DIRECTION
-            detectDirection(nose, lastHeadPos);
-
             handleState(speed, now);
             updateStats();
 
@@ -593,35 +557,6 @@
             updateStats();
         }
         requestAnimationFrame(loop);
-    }
-
-    // --- DÉTECTION DE LA DIRECTION DU MOUVEMENT ---
-    function detectDirection(currentPos, lastPos) {
-        if (!lastPos) return;
-
-        const dx = currentPos.x - lastPos.x;
-        const dy = currentPos.y - lastPos.y;
-
-        // Seuil pour considérer un mouvement significatif
-        const threshold = 10;
-
-        if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
-            if (Math.abs(dx) > Math.abs(dy)) {
-                // Mouvement horizontal dominant
-                if (dx > 0) {
-                    updateMovementStats('right', false);
-                } else {
-                    updateMovementStats('left', false);
-                }
-            } else {
-                // Mouvement vertical dominant
-                if (dy > 0) {
-                    updateMovementStats('down', false);
-                } else {
-                    updateMovementStats('up', false);
-                }
-            }
-        }
     }
 
     // --- MACHINE D'ÉTAT (avec comptage des mouvements par direction) ---
