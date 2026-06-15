@@ -205,7 +205,9 @@
         let errorCount = 0; // Compteur d'erreurs consécutives
 
         // Liste des lettres (valeur fixe)
-        const letters = "D F P V A N L C O E R U S Z H".split(" ");// --- INITIALISATION DU CLAVIER ---
+        const letters = "D F P V A N L C O E R U S Z H".split(" ");
+
+        // --- INITIALISATION DU CLAVIER ---
         function initKeyboard() {
             keyboard.innerHTML = '';
             const lettersSorted = [...letters].sort();
@@ -265,10 +267,18 @@
                     updateLetterDisplay();
                     updateStats();
 
-                    // Ne pas passer en IDLE, l'utilisateur doit réessayer
+                    // Réafficher la même lettre pour permettre à l'utilisateur de réessayer
+                    letterEl.style.opacity = '1';
+                    flashTimeout = setTimeout(() => {
+                        if (state === 'WAITING_VALIDATION') {
+                            letterEl.style.opacity = '0';
+                        }
+                    }, 60);
                 }
             }
-        }// --- CALIBRATION ---
+        }
+
+        // --- CALIBRATION ---
         function toggleCalib() {
             const panel = document.getElementById('calibPanel');
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -302,6 +312,7 @@
             }
             letterSizeInputEl.value = letterSizePx;
         }
+
         function adjustLetterSize(delta) {
             letterSizePx = Math.max(20, Math.min(300, letterSizePx + delta));
             letterSizeInputEl.value = letterSizePx;
@@ -319,7 +330,9 @@
 
         function updateLetterDisplay() {
             letterSizeValueEl.innerText = letterSizePx;
-        }// --- DÉMARRAGE ---
+        }
+
+        // --- DÉMARRAGE ---
         async function startApp() {
             loadCalib();
             initKeyboard();
@@ -373,7 +386,9 @@
                     rawDistance = calculatedDist;
                     distance = (distance * 0.9) + (rawDistance * 0.1);
                     distance = Math.max(30, Math.min(120, distance));
-                }// 2. VITESSE
+                }
+
+                // 2. VITESSE
                 const now = performance.now();
                 if (lastHeadPos) {
                     const dt = (now - lastTime);
@@ -421,12 +436,10 @@
                     flashTimeout = setTimeout(() => {
                         if (state === 'WAITING_VALIDATION') {
                             letterEl.style.opacity = '0';
-                            // On reste en WAITING_VALIDATION jusqu'à validation
                         }
                     }, flashDuration);
                 }
             }
-            // Dans l'état WAITING_VALIDATION, on ignore les mouvements de tête
         }
 
         // --- CALCUL TAILLE OPTIQUE ---
@@ -443,6 +456,7 @@
             updateLetterDisplay();
             letterSizeInputEl.value = letterSizePx;
         }
+
         function updateStats() {
             document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
             document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
