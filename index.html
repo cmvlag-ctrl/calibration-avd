@@ -100,10 +100,6 @@
         .key.validated {
             background: #28a745;
         }
-        .key.invalid {
-            background: #dc3545;
-            cursor: not-allowed;
-        }
         #waitingMessage {
             position: fixed; bottom: 10px; left: 50%;
             transform: translateX(-50%);
@@ -234,7 +230,7 @@
 
             // Réinitialiser tous les styles
             keys.forEach(k => {
-                k.classList.remove('validated', 'invalid');
+                k.classList.remove('validated');
             });
 
             // Trouver la touche cliquée
@@ -257,7 +253,8 @@
                     state = 'IDLE';
                     waitingMessage.style.display = 'none';
                 } else {
-                    clickedKey.classList.add('invalid');
+                    // MODIFICATION : Suppression de l'affichage de la touche invalidée
+                    // clickedKey.classList.add('invalid'); // <-- Cette ligne a été supprimée
 
                     // Augmenter la taille de la lettre de 5px après une erreur
                     letterSizePx = Math.min(300, letterSizePx + 5);
@@ -268,7 +265,7 @@
                     updateLetterDisplay();
                     updateStats();
 
-                    // MODIFICATION PRINCIPALE : Remettre à IDLE pour permettre une nouvelle tentative
+                    // Remettre à IDLE pour permettre une nouvelle tentative
                     state = 'IDLE';
                     waitingMessage.style.display = 'none';
 
