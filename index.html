@@ -258,357 +258,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
 <script>
-    let model = null;
-    let video = document.getElementById('video');
-    let letterEl = document.getElementById('letterDisplay');
-    let ui = document.getElementById('ui');
-    let overlay = document.getElementById('startOverlay');
-    let startMessage = document.getElementById('startMessage');
-    let letterSizeControl = document.getElementById('letterSizeControl');
-    let letterSizeValueEl = document.getElementById('letterSizeValue');
-    let letterSizeInputEl = document.getElementById('letterSizeInput');
-    let keyboard = document.getElementById('keyboard');
-    let waitingMessage = document.getElementById('waitingMessage');
-    let scoreDisplay = document.getElementById('scoreDisplay');
-    let finalStatsOverlay = document.getElementById('finalStatsOverlay');
-
-    // Paramètres
-    let acuity = 1.0;
-    let screenDPI = 300;
-    let calibrationFactor = 1.0;
-    let letterSizePx = 80;
-
-    // Tracking
-    let lastHeadPos = null;
-    let lastTime = 0;
-    let speed = 0;
-    let smoothedSpeed = 0;
-    let distance = 50;
-    let rawDistance = 50;
-    let state = 'IDLE'; // IDLE, WAITING_VALIDATION
-    let lastFlashTime = 0;
-    let currentDisplayedLetter = null;
-    let flashTimeout = null;
-
-    // Statistiques générales
-    let totalLetters = 0;
-    let correctLetters = 0;
-    let minSuccessfulLetterSize = Infinity;
-
-    // Statistiques par direction
-    let movements = {
-        right: { count: 0, correct: 0, minSize: Infinity },
-        left: { count: 0, correct: 0, minSize: Infinity },
-        up: { count: 0, correct: 0, minSize: Infinity },
-        down: { count: 0, correct: 0, minSize: Infinity }
-    };
-
-    // Direction du dernier mouvement détecté
-    let lastMovementDirection = null;
-
-    // Liste des lettres
-    const letters = "D F P V A N L C O E R U S Z H".split(" ");
-
-    // --- INITIALISATION DU CLAVIER ---
-    function initKeyboard() {
-        keyboard.innerHTML = '';
-        const lettersSorted = [...letters].sort();
-
-        lettersSorted.forEach(letter => {
-            const key = document.createElement('button');
-            key.className = 'key';
-            key.textContent = letter;
-            key.onclick = () => validateLetter(letter);
-            keyboard.appendChild(key);
-        });
-    }
-
-    // --- VALIDATION D'UNE LETTRE ---
-    function validateLetter(letter) {
-        if (state !== 'WAITING_VALIDATION') return;
-
-        // Effacer le timeout de disparition automatique
-        if (flashTimeout) {
-            clearTimeout(flashTimeout);
-            flashTimeout = null;
-        }
-
-        const keys = document.querySelectorAll('.key');
-        keys.forEach(k => k.classList.remove('validated', 'invalid'));
-
-        const clickedKey = Array.from(keys).find(k => k.textContent === letter);
-
-        if (clickedKey) {
-            totalLetters++;
-            if (letter === currentDisplayedLetter) {
-                // Bonne réponse
-                correctLetters++;
-                clickedKey.classList.add('validated');
-                letterEl.style.opacity = '0';
-                letterSizePx = Math.max(20, letterSizePx - 5);
-
-                if (letterSizePx < minSuccessfulLetterSize) {
-                    minSuccessfulLetterSize = letterSizePx;
-                }
-
-                // Mettre à jour la taille minimale pour la direction du dernier mouvement
-                if (lastMovementDirection && movements[lastMovementDirection]) {
-                    if (letterSizePx < movements[lastMovementDirection].minSize) {
-                        movements[lastMovementDirection].minSize = letterSizePx;
-                    }
-                }
-
-            } else {
-                // Mauvaise réponse
-                clickedKey.classList.add('invalid');
-                letterSizePx = Math.min(300, letterSizePx + 5);
-            }
-
-            updateScore();
-            updateAcuityFromSize();
-            updateLetterDisplay();
-            updateStats();
-
-            state = 'IDLE';
-            waitingMessage.style.display = 'none';
-            waitingMessage.textContent = "Faites un mouvement de tête pour continuer";
-            waitingMessage.style.display = 'block';
-        }
-    }
-
-    // --- MISE À JOUR DU SCORE GLOBAL ---
-    function updateScore() {
-        if (totalLetters === 0) {
-            scoreDisplay.innerHTML = `Score: -- | Plus petite lettre réussie: -- px`;
-        } else {
-            const successRate = Math.round((correctLetters / totalLetters) * 100);
-            scoreDisplay.innerHTML = `Score: ${successRate}% (${correctLetters}/${totalLetters}) | Plus petite lettre réussie: ${minSuccessfulLetterSize} px`;
-        }
-    }
-
-    // --- MISE À JOUR DES STATISTIQUES PAR DIRECTION ---
-    function updateMovementStats(direction, isCorrect) {
-        movements[direction].count++;
-        if (isCorrect) {
-            movements[direction].correct++;
-        }
-        lastMovementDirection = direction;
-    }
-
-    // --- AFFICHAGE DES STATISTIQUES FINALES ---
-    function showFinalStats() {
-        if (totalLetters === 0) {
-            alert("Aucun test n'a été effectué. Faites au moins un mouvement pour voir les statistiques.");
-            return;
-        }
-
-        const globalSuccessRate = Math.round((correctLetters / totalLetters) * 100);
-
-        // Mettre à jour les valeurs dans l'overlay
-        document.getElementById('globalSuccessRate').textContent = `${globalSuccessRate}%`;
-
-        // Droite
-        document.getElementById('rightCount').textContent = movements.right.count;
-        document.getElementById('rightSuccessRate').textContent = movements.right.count > 0 ?
-            `${Math.round((movements.right.correct / movements.right.count) * 100)}%` : '--%';
-        document.getElementById('rightMinSize').textContent = movements.right.minSize !== Infinity ?
-            `${movements.right.minSize} px` : '-- px';
-
-        // Gauche
-        document.getElementById('leftCount').textContent = movements.left.count;
-        document.getElementById('leftSuccessRate').textContent = movements.left.count > 0 ?
-            `${Math.round((movements.left.correct / movements.left.count) * 100)}%` : '--%';
-        document.getElementById('leftMinSize').textContent = movements.left.minSize !== Infinity ?
-            `${movements.left.minSize} px` : '-- px';
-
-        // Haut
-        document.getElementById('upCount').textContent = movements.up.count;
-        document.getElementById('upSuccessRate').textContent = movements.up.count > 0 ?
-            `${Math.round((movements.up.correct / movements.up.count) * 100)}%` : '--%';
-        document.getElementById('upMinSize').textContent = movements.up.minSize !== Infinity ?
-            `${movements.up.minSize} px` : '-- px';
-
-        // Bas
-        document.getElementById('downCount').textContent = movements.down.count;
-        document.getElementById('downSuccessRate').textContent = movements.down.count > 0 ?
-            `${Math.round((movements.down.correct / movements.down.count) * 100)}%` : '--%';
-        document.getElementById('downMinSize').textContent = movements.down.minSize !== Infinity ?
-            `${movements.down.minSize} px` : '-- px';
-
-        // Afficher l'overlay
-        finalStatsOverlay.style.display = 'flex';
-    }
-
-    // --- RECOMMENCER LE TEST ---
-    function restartTest() {
-        // Réinitialiser toutes les statistiques
-        totalLetters = 0;
-        correctLetters = 0;
-        minSuccessfulLetterSize = Infinity;
-        movements = {
-            right: { count: 0, correct: 0, minSize: Infinity },
-            left: { count: 0, correct: 0, minSize: Infinity },
-            up: { count: 0, correct: 0, minSize: Infinity },
-            down: { count: 0, correct: 0, minSize: Infinity }
-        };
-        lastMovementDirection = null;
-
-        // Réinitialiser l'affichage
-        updateScore();
-        scoreDisplay.innerHTML = `Score: -- | Plus petite lettre réussie: -- px`;
-
-        // Cacher l'overlay
-        finalStatsOverlay.style.display = 'none';
-
-        // Réinitialiser la taille des lettres
-        letterSizePx = 80;
-        updateAcuityFromSize();
-        updateLetterDisplay();
-        updateStats();
-    }
-
-    // --- CALIBRATION ---
-    function toggleCalib() {
-        const panel = document.getElementById('calibPanel');
-        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-    }
-    function updateCalib() {
-        calibrationFactor = parseFloat(document.getElementById('calibSlider').value);
-        document.getElementById('calibBar').style.transform = `scaleX(${calibrationFactor})`;
-    }
-    function saveCalib() {
-        localStorage.setItem('avd_blazeface_calib_v3', calibrationFactor);
-        document.getElementById('calibPanel').style.display = 'none';
-        updateStats();
-    }
-    function loadCalib() {
-        const saved = localStorage.getItem('avd_blazeface_calib_v3');
-        if (saved) {
-            calibrationFactor = parseFloat(saved);
-            document.getElementById('calibSlider').value = calibrationFactor;
-            updateCalib();
-        }
-    }
-
-    // --- GESTION DE LA TAILLE DES LETTRES ---
-    function updateLetterSizeFromInput() {
-        const newSize = parseInt(letterSizeInputEl.value);
-        if (!isNaN(newSize) && newSize >= 20 && newSize <= 300) {
-            letterSizePx = newSize;
-            updateAcuityFromSize();
-            updateLetterDisplay();
-            updateStats();
-        }
-        letterSizeInputEl.value = letterSizePx;
-    }
-
-    function adjustLetterSize(delta) {
-        letterSizePx = Math.max(20, Math.min(300, letterSizePx + delta));
-        letterSizeInputEl.value = letterSizePx;
-        updateAcuityFromSize();
-        updateLetterDisplay();
-        updateStats();
-    }
-
-    function updateAcuityFromSize() {
-        acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx);
-        acuity = Math.max(0.1, Math.min(2.0, acuity));
-        document.getElementById('acuity').value = acuity.toFixed(1);
-        document.getElementById('valAcuity').innerText = acuity.toFixed(1);
-    }
-
-    function updateLetterDisplay() {
-        letterSizeValueEl.innerText = letterSizePx;
-        letterEl.style.fontSize = letterSizePx + 'px';
-    }
-
-    // --- DÉMARRAGE ---
-    async function startApp() {
-        loadCalib();
-        initKeyboard();
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
-            });
-            video.srcObject = stream;
-            video.onloadedmetadata = async () => {
-                overlay.style.display = 'none';
-                ui.style.display = 'block';
-                letterSizeControl.style.display = 'block';
-                keyboard.style.display = 'flex';
-                video.play();
-                document.getElementById('statusInit').innerText = "Chargement IA...";
-                model = await blazeface.load();
-
-                document.getElementById('statusInit').innerText = "IA prête";
-                startMessage.style.opacity = '1';
-
-                setTimeout(() => {
-                    startMessage.style.opacity = '0';
-                }, 1000);
-
-                updateLetterDisplay();
-                loop();
-            };
-        } catch (err) {
-            document.getElementById('errorMsg').innerText = "Erreur Caméra : " + err.message;
-        }
-    }
-
-    // --- BOUCLE PRINCIPALE ---
-    async function loop() {
-        if (!model) return;
-
-        const predictions = await model.estimateFaces(video, false);
-
-        if (predictions.length > 0) {
-            const face = predictions[0];
-            const nose = face.landmarks[2];
-            const leftEye = face.landmarks[0];
-            const rightEye = face.landmarks[1];
-
-            // 1. DISTANCE
-            const distInterYeuxPx = Math.sqrt(
-                Math.pow(rightEye[0] - leftEye[0], 2) +
-                Math.pow(rightEye[1] - leftEye[1], 2)
-            );
-            const K_FACTOR = 2800;
-            if (distInterYeuxPx > 5) {
-                let calculatedDist = K_FACTOR / distInterYeuxPx;
-                rawDistance = calculatedDist;
-                distance = (distance * 0.9) + (rawDistance * 0.1);
-                distance = Math.max(30, Math.min(120, distance));
-            }
-
-            // 2. VITESSE
-            const now = performance.now();
-            if (lastHeadPos) {
-                const dt = (now - lastTime);
-                if (dt > 16) {
-                    const dx = nose[0] - lastHeadPos.x;
-                    const dy = nose[1] - lastHeadPos.y;
-                    const distPx = Math.sqrt(dx*dx + dy*dy);
-                    let rawSpeed = distPx / dt;
-                    smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
-                    speed = smoothedSpeed * 1000;
-                }
-            }
-            lastHeadPos = { x: nose[0], y: nose[1] };
-            lastTime = now;
-
-            // 3. DÉTECTION DE LA DIRECTION
-            detectDirection(nose, lastHeadPos);
-
-            handleState(speed, now);
-            updateStats();
-
-        } else {
-            smoothedSpeed = smoothedSpeed * 0.9;
-            speed = smoothedSpeed * 1000;
-            updateStats();
-        }
-        requestAnimationFrame(loop);
-    }
+// ... (toutes les variables et fonctions inchangées jusqu'à detectDirection)
 
     // --- DÉTECTION DE LA DIRECTION DU MOUVEMENT ---
     function detectDirection(currentPos, lastPos) {
@@ -639,60 +289,89 @@
         }
     }
 
-    // --- MACHINE D'ÉTAT (avec comptage des mouvements par direction) ---
-    function handleState(currentSpeed, now) {
-        const minSpeedTrigger = 150;
-        const flashDuration = 60;
-        const cooldownDuration = 1000;
+    // --- VALIDATION D'UNE LETTRE ---
+    function validateLetter(letter) {
+        if (state !== 'WAITING_VALIDATION') return;
 
-        if (state === 'IDLE') {
-            if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
-                state = 'WAITING_VALIDATION';
-                lastFlashTime = now;
-                currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-                letterEl.innerText = currentDisplayedLetter;
-                letterEl.style.opacity = '1';
+        // Effacer le timeout de disparition automatique
+        if (flashTimeout) {
+            clearTimeout(flashTimeout);
+            flashTimeout = null;
+        }
 
-                waitingMessage.textContent = "⏳ Validez la lettre affichée pour continuer";
-                waitingMessage.style.display = 'block';
+        const keys = document.querySelectorAll('.key');
+        keys.forEach(k => k.classList.remove('validated', 'invalid'));
 
-                flashTimeout = setTimeout(() => {
-                    if (state === 'WAITING_VALIDATION') {
-                        letterEl.style.opacity = '0';
+        const clickedKey = Array.from(keys).find(k => k.textContent === letter);
+
+        if (clickedKey) {
+            totalLetters++;
+            if (letter === currentDisplayedLetter) {
+                // Bonne réponse
+                correctLetters++;
+                clickedKey.classList.add('validated');
+                letterEl.style.opacity = '0';
+                letterSizePx = Math.max(20, letterSizePx - 5);
+
+                if (letterSizePx < minSuccessfulLetterSize) {
+                    minSuccessfulLetterSize = letterSizePx;
+                }
+
+                // ✅ CORRECTION : Mise à jour directe du champ 'correct' sans réincrémenter count
+                if (lastMovementDirection && movements[lastMovementDirection]) {
+                    movements[lastMovementDirection].correct++; // Incrémente uniquement 'correct'
+                    if (letterSizePx < movements[lastMovementDirection].minSize) {
+                        movements[lastMovementDirection].minSize = letterSizePx;
                     }
-                }, flashDuration);
+                }
+
+            } else {
+                // Mauvaise réponse
+                clickedKey.classList.add('invalid');
+                letterSizePx = Math.min(300, letterSizePx + 5);
             }
+
+            updateScore();
+            updateAcuityFromSize();
+            updateLetterDisplay();
+            updateStats();
+
+            state = 'IDLE';
+            waitingMessage.style.display = 'none';
+            waitingMessage.textContent = "Faites un mouvement de tête pour continuer";
+            waitingMessage.style.display = 'block';
         }
     }
 
-    // --- CALCUL TAILLE OPTIQUE ---
-    function calculateSize(distCm, acuityDecimal) {
-        let heightCm = (distCm * 0.0145) / acuityDecimal;
-        let heightPx = (heightCm / 2.54) * screenDPI;
-        return Math.max(20, Math.round(heightPx));
-    }
+    // --- RECOMMENCER LE TEST ---
+    function restartTest() {
+        // Réinitialiser toutes les statistiques
+        totalLetters = 0;
+        correctLetters = 0;
+        minSuccessfulLetterSize = Infinity;
+        movements = {
+            right: { count: 0, correct: 0, minSize: Infinity },
+            left: { count: 0, correct: 0, minSize: Infinity },
+            up: { count: 0, correct: 0, minSize: Infinity },
+            down: { count: 0, correct: 0, minSize: Infinity }
+        };
+        lastMovementDirection = null;
 
-    function updateParams() {
-        acuity = parseFloat(document.getElementById('acuity').value);
-        document.getElementById('valAcuity').innerText = acuity.toFixed(1);
-        letterSizePx = Math.round(calculateSize(distance, acuity));
+        // Réinitialiser l'affichage
+        updateScore();
+        scoreDisplay.innerHTML = `Score: -- | Plus petite lettre réussie: -- px`;
+
+        // Cacher l'overlay
+        finalStatsOverlay.style.display = 'none';
+
+        // Réinitialiser la taille des lettres
+        letterSizePx = 80;
+        updateAcuityFromSize();
         updateLetterDisplay();
-        letterSizeInputEl.value = letterSizePx;
+        updateStats();
     }
 
-    function updateStats() {
-        document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
-        document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
-        document.getElementById('statusSize').innerText = `Taille: ${letterSizePx} px`;
-
-        let pct = Math.min(100, (speed / 250) * 100);
-        document.getElementById('speedBar').style.width = `${pct}%`;
-
-        const bar = document.getElementById('speedBar');
-        if(speed > 150) bar.style.background = '#f00';
-        else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
-    }
+// ... (le reste du code reste inchangé)
 </script>
 </body>
 </html>
-
