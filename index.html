@@ -25,7 +25,6 @@
         .stat { font-size: 12px; margin: 2px 0; color: #0f0; font-family: monospace; }
         .error { color: #f55; }
 
-        /* Jauge de vitesse */
         .speed-gauge {
             height: 6px; background: #333; margin-top: 5px; border-radius: 3px; overflow: hidden;
         }
@@ -53,16 +52,12 @@
         }
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
 
-        /* Contrôle pour la taille des lettres */
         #letterSizeControl {
             position: absolute; top: 10px; right: 10px; z-index: 20;
             background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
-            width: 120px;
-            text-align: center;
+            width: 120px; text-align: center;
         }
-        #letterSizeLabel {
-            font-size: 11px; margin-bottom: 5px;
-        }
+        #letterSizeLabel { font-size: 11px; margin-bottom: 5px; }
         #letterSizeValue {
             font-size: 16px; font-weight: bold; margin: 5px 0;
             color: #4ecdc4;
@@ -74,16 +69,13 @@
             width: 30px; height: 30px; font-size: 18px; font-weight: bold;
             background: #555; padding: 0; line-height: 28px;
         }
-        .size-btn:hover {
-            background: #777;
-        }
+        .size-btn:hover { background: #777; }
         #letterSizeInput {
             width: 60px; text-align: center; background: #333; color: white;
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
 
-        /* Clavier virtuel */
         #keyboard {
             position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
@@ -96,23 +88,15 @@
             cursor: pointer; display: flex; align-items: center; justify-content: center;
             transition: all 0.2s;
         }
-        .key:hover {
-            background: #555;
-            transform: scale(1.1);
-        }
-        .key.validated {
-            background: #28a745;
-        }
+        .key:hover { background: #555; transform: scale(1.1); }
+        .key.validated { background: #28a745; }
 
         #waitingMessage {
             position: fixed; bottom: 10px; left: 50%;
             transform: translateX(-50%);
             color: #ffc107; font-size: 14px; font-weight: bold;
-            z-index: 31;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 8px 15px;
-            border-radius: 4px;
-            white-space: nowrap;
+            z-index: 31; background: rgba(0, 0, 0, 0.7);
+            padding: 8px 15px; border-radius: 4px; white-space: nowrap;
         }
     </style>
 </head>
@@ -154,7 +138,6 @@
         </div>
     </div>
 
-    <!-- Contrôle pour la taille des lettres -->
     <div id="letterSizeControl" style="display:none;">
         <div id="letterSizeLabel">Taille lettre (px)</div>
         <div id="letterSizeValue">80</div>
@@ -165,10 +148,7 @@
         </div>
     </div>
 
-    <!-- Clavier virtuel -->
     <div id="keyboard" style="display:none;"></div>
-
-    <!-- Message d'attente -->
     <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
@@ -176,23 +156,21 @@
 
     <script>
         let model = null;
-        let video = document.getElementById('video');
-        let letterEl = document.getElementById('letterDisplay');
-        let ui = document.getElementById('ui');
-        let overlay = document.getElementById('startOverlay');
-        let letterSizeControl = document.getElementById('letterSizeControl');
-        let letterSizeValueEl = document.getElementById('letterSizeValue');
-        let letterSizeInputEl = document.getElementById('letterSizeInput');
-        let keyboard = document.getElementById('keyboard');
-        let waitingMessage = document.getElementById('waitingMessage');
+        const video = document.getElementById('video');
+        const letterEl = document.getElementById('letterDisplay');
+        const ui = document.getElementById('ui');
+        const overlay = document.getElementById('startOverlay');
+        const letterSizeControl = document.getElementById('letterSizeControl');
+        const letterSizeValueEl = document.getElementById('letterSizeValue');
+        const letterSizeInputEl = document.getElementById('letterSizeInput');
+        const keyboard = document.getElementById('keyboard');
+        const waitingMessage = document.getElementById('waitingMessage');
 
-        // Paramètres
         let acuity = 1.0;
         let screenDPI = 300;
         let calibrationFactor = 1.0;
         let letterSizePx = 80;
 
-        // Tracking
         let lastHeadPos = null;
         let lastTime = 0;
         let speed = 0;
@@ -204,14 +182,11 @@
         let currentDisplayedLetter = null;
         let flashTimeout = null;
 
-        // Liste des lettres (valeur fixe)
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
 
-        // --- INITIALISATION DU CLAVIER ---
         function initKeyboard() {
             keyboard.innerHTML = '';
             const lettersSorted = [...letters].sort();
-
             lettersSorted.forEach(letter => {
                 const key = document.createElement('button');
                 key.className = 'key';
@@ -221,11 +196,9 @@
             });
         }
 
-        // --- VALIDATION D'UNE LETTRE : retour en IDLE, pas de nouvelle lettre auto ---
         function validateLetter(letter) {
             if (state !== 'WAITING_VALIDATION') return;
 
-            // Annuler le timeout de disparition automatique
             if (flashTimeout) {
                 clearTimeout(flashTimeout);
                 flashTimeout = null;
@@ -241,10 +214,8 @@
 
             if (isCorrect) {
                 clickedKey.classList.add('validated');
-                // Succès : on réduit la taille
                 letterSizePx = Math.max(20, letterSizePx - 5);
             } else {
-                // Erreur : on augmente la taille
                 letterSizePx = Math.min(300, letterSizePx + 5);
             }
 
@@ -255,13 +226,11 @@
             updateLetterDisplay();
             updateStats();
 
-            // Dans tous les cas : la lettre disparaît et on revient en IDLE
             letterEl.style.opacity = '0';
             waitingMessage.style.display = 'none';
             state = 'IDLE';
         }
 
-        // --- CALIBRATION ---
         function toggleCalib() {
             const panel = document.getElementById('calibPanel');
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -284,7 +253,6 @@
             }
         }
 
-        // --- GESTION DE LA TAILLE DES LETTRES ---
         function updateLetterSizeFromInput() {
             const newSize = parseInt(letterSizeInputEl.value);
             if (!isNaN(newSize) && newSize >= 20 && newSize <= 300) {
@@ -316,7 +284,6 @@
             letterEl.style.fontSize = letterSizePx + 'px';
         }
 
-        // --- DÉMARRAGE ---
         async function startApp() {
             loadCalib();
             initKeyboard();
@@ -347,7 +314,6 @@
             }
         }
 
-        // --- BOUCLE PRINCIPALE ---
         async function loop() {
             if (!model) return;
 
@@ -355,15 +321,18 @@
 
             if (predictions.length > 0) {
                 const face = predictions;
-                const nose = face.landmarks[2];
-                const leftEye = face.landmarks;
-                const rightEye = face.landmarks[1];
+                const landmarks = face.landmarks;
 
-                // 1. DISTANCE
-                const distInterYeuxPx = Math.sqrt(
-                    Math.pow(rightEye - leftEye, 2) +
-                    Math.pow(rightEye[1] - leftEye[1], 2)
-                );
+                // indices typiques : 0 = right eye, 1 = left eye, 2 = nose (pour BlazeFace)
+                const rightEye = landmarks;
+                const leftEye = landmarks[1];
+                const nose = landmarks[2];
+
+                // DISTANCE: estimation simple via distance inter-yeux
+                const dxEyes = rightEye - leftEye;
+                const dyEyes = rightEye[1] - leftEye[1];
+                const distInterYeuxPx = Math.sqrt(dxEyes*dxEyes + dyEyes*dyEyes);
+
                 const K_FACTOR = 2800;
                 if (distInterYeuxPx > 5) {
                     let calculatedDist = K_FACTOR / distInterYeuxPx;
@@ -372,17 +341,17 @@
                     distance = Math.max(30, Math.min(120, distance));
                 }
 
-                // 2. VITESSE
+                // VITESSE: déplacement du nez
                 const now = performance.now();
                 if (lastHeadPos) {
-                    const dt = (now - lastTime);
+                    const dt = now - lastTime;
                     if (dt > 16) {
                         const dx = nose - lastHeadPos.x;
                         const dy = nose[1] - lastHeadPos.y;
                         const distPx = Math.sqrt(dx*dx + dy*dy);
-                        let rawSpeed = distPx / dt;
+                        let rawSpeed = distPx / dt;        // px/ms
                         smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
-                        speed = smoothedSpeed * 1000;
+                        speed = smoothedSpeed * 1000;      // px/s
                     }
                 }
                 lastHeadPos = { x: nose, y: nose[1] };
@@ -390,8 +359,8 @@
 
                 handleState(speed, now);
                 updateStats();
-
             } else {
+                // Pas de visage détecté, la vitesse décroît doucement
                 smoothedSpeed = smoothedSpeed * 0.9;
                 speed = smoothedSpeed * 1000;
                 updateStats();
@@ -399,10 +368,9 @@
             requestAnimationFrame(loop);
         }
 
-        // --- MACHINE D'ÉTAT ---
         function handleState(currentSpeed, now) {
             const minSpeedTrigger = 150;
-            const flashDuration = 60; // 60ms fixes
+            const flashDuration = 60;
             const cooldownDuration = 1000;
 
             if (state === 'IDLE') {
@@ -412,10 +380,8 @@
                     currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
                     letterEl.innerText = currentDisplayedLetter;
                     letterEl.style.opacity = '1';
-
                     waitingMessage.style.display = 'block';
 
-                    // Disparaît automatiquement après 60ms (mais reste en attente de validation)
                     flashTimeout = setTimeout(() => {
                         if (state === 'WAITING_VALIDATION') {
                             letterEl.style.opacity = '0';
@@ -423,10 +389,9 @@
                     }, flashDuration);
                 }
             }
-            // Dans l'état WAITING_VALIDATION, on ignore les mouvements de tête
+            // En WAITING_VALIDATION, on ignore les mouvements (juste stats mises à jour)
         }
 
-        // --- CALCUL TAILLE OPTIQUE ---
         function calculateSize(distCm, acuityDecimal) {
             let heightCm = (distCm * 0.0145) / acuityDecimal;
             let heightPx = (heightCm / 2.54) * screenDPI;
