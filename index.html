@@ -103,22 +103,6 @@
         }
         .key.invalid {
             background: #dc3545; /* Rouge Bootstrap */
-            animation: shake 0.3s;
-        }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-5px); }
-            40%, 80% { transform: translateX(5px); }
-        }
-        #waitingMessage {
-            position: fixed; bottom: 10px; left: 50%;
-            transform: translateX(-50%);
-            color: #ffc107; font-size: 14px; font-weight: bold;
-            z-index: 31;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 8px 15px;
-            border-radius: 4px;
-            white-space: nowrap;
         }
     </style>
 </head>
@@ -227,7 +211,7 @@
         });
     }
 
-    // --- VALIDATION D'UNE LETTRE (MODIFIÉE) ---
+    // --- VALIDATION D'UNE LETTRE (CORRIGÉE) ---
     function validateLetter(letter) {
         if (state !== 'WAITING_VALIDATION') return;
 
@@ -238,11 +222,7 @@
         }
 
         const keys = document.querySelectorAll('.key');
-
-        // Réinitialiser tous les styles
-        keys.forEach(k => {
-            k.classList.remove('validated', 'invalid');
-        });
+        keys.forEach(k => k.classList.remove('validated', 'invalid')); // Réinitialiser les styles
 
         // Trouver la touche cliquée
         const clickedKey = Array.from(keys).find(k => k.textContent === letter);
@@ -254,7 +234,7 @@
                 letterEl.style.opacity = '0';
                 letterSizePx = Math.max(20, letterSizePx - 5);
             } else {
-                // ❌ Mauvaise réponse → Rouge + effet
+                // ❌ Mauvaise réponse → Rouge
                 clickedKey.classList.add('invalid');
                 letterSizePx = Math.min(300, letterSizePx + 5);
             }
@@ -467,3 +447,4 @@
 </script>
 </body>
 </html>
+
