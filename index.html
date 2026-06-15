@@ -32,9 +32,7 @@
         .speed-bar {
             height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #ff0, #f00);
             transition: width 0.1s linear;
-        }
-
-        button {
+        }button {
             background: #4ecdc4; border: none; padding: 10px; border-radius: 5px;
             cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px;
         }
@@ -53,7 +51,6 @@
             display: flex; justify-content: center; align-items: center; width: 12mm;
         }
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
-
         /* Contrôle pour la taille des lettres */
         #letterSizeControl {
             position: absolute; top: 10px; right: 10px; z-index: 20;
@@ -83,7 +80,6 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
-
         /* Clavier virtuel - CORRIGÉ pour 2 lignes */
         #keyboard {
             position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
@@ -120,9 +116,7 @@
         }
     </style>
 </head>
-<body>
-
-    <div id="startOverlay">
+<body><div id="startOverlay">
         <h1>Test Acuité (Pro)</h1>
         <p>Détection de vitesse optimisée.</p>
         <button onclick="startApp()">DÉMARRER</button>
@@ -176,9 +170,7 @@
     </div>
 
     <!-- Message d'attente -->
-    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
-
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div><script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
     <script>
@@ -252,9 +244,18 @@
                 if (letter === currentDisplayedLetter) {
                     clickedKey.classList.add('validated');
                     letterEl.style.opacity = '0'; // Faire disparaître immédiatement
+
+                    // Réduire la taille de la lettre suivante de 5px après validation réussie
+                    letterSizePx = Math.max(20, letterSizePx - 5);
+                    letterSizeInputEl.value = letterSizePx;
+                    letterSizeValueEl.innerText = letterSizePx;
+
+                    updateAcuityFromSize();
+                    updateLetterDisplay();
+                    updateStats();
+
                     state = 'IDLE';
                     waitingMessage.style.display = 'none';
-                    updateStats();
                 } else {
                     clickedKey.classList.add('invalid');
                     // Ne pas passer en IDLE, l'utilisateur doit réessayer
@@ -314,6 +315,7 @@
 
         function updateLetterDisplay() {
             letterSizeValueEl.innerText = letterSizePx;
+            letterEl.style.fontSize = letterSizePx + 'px';
         }
 
         // --- DÉMARRAGE ---
@@ -409,10 +411,8 @@
                 if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
                     state = 'WAITING_VALIDATION';
                     lastFlashTime = now;
-
                     currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
                     letterEl.innerText = currentDisplayedLetter;
-                    letterEl.style.fontSize = letterSizePx + 'px';
                     letterEl.style.opacity = '1';
 
                     waitingMessage.style.display = 'block';
