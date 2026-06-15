@@ -80,7 +80,7 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
-        /* Clavier virtuel - CORRIGÉ pour 2 lignes */
+        /* Clavier virtuel */
         #keyboard {
             position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
@@ -243,7 +243,8 @@
             if (clickedKey) {
                 if (letter === currentDisplayedLetter) {
                     clickedKey.classList.add('validated');
-                    letterEl.style.opacity = '0'; // Faire disparaître immédiatement
+                    letterEl.style.opacity = '0';
+                    waitingMessage.style.display = 'none';
 
                     // Réduire la taille de la lettre suivante de 5px après validation réussie
                     letterSizePx = Math.max(20, letterSizePx - 5);
@@ -255,7 +256,6 @@
                     updateStats();
 
                     state = 'IDLE';
-                    waitingMessage.style.display = 'none';
                 } else {
                     clickedKey.classList.add('invalid');
 
@@ -268,18 +268,16 @@
                     updateLetterDisplay();
                     updateStats();
 
-                    // Réinitialiser complètement l'état
-                    state = 'IDLE';
+                    // Réinitialiser l'état et afficher immédiatement une nouvelle lettre
+                    state = 'WAITING_VALIDATION';
                     waitingMessage.style.display = 'none';
-
-                    // Afficher immédiatement une nouvelle lettre (sans lettre fixe intermédiaire)
-                    showRandomLetter();
+                    displayNewLetter();
                 }
             }
         }
 
         // Fonction pour afficher une nouvelle lettre aléatoire
-        function showRandomLetter() {
+        function displayNewLetter() {
             currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
             letterEl.innerText = currentDisplayedLetter;
             letterEl.style.opacity = '1';
@@ -440,7 +438,7 @@
                 if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
                     state = 'WAITING_VALIDATION';
                     lastFlashTime = now;
-                    showRandomLetter();
+                    displayNewLetter();
                 }
             }
             // Dans l'état WAITING_VALIDATION, on ignore les mouvements de tête
