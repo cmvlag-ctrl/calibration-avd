@@ -220,7 +220,7 @@
             });
         }
 
-        // --- VALIDATION D'UNE LETTRE (MODIFIÉE) ---
+        // --- VALIDATION D'UNE LETTRE (CORRIGÉE) ---
         function validateLetter(letter) {
             if (state !== 'WAITING_VALIDATION') return;
 
@@ -268,24 +268,29 @@
                     updateLetterDisplay();
                     updateStats();
 
-                    // MODIFICATION PRINCIPALE : Remettre à IDLE pour permettre une nouvelle tentative
+                    // Réinitialiser complètement l'état
                     state = 'IDLE';
                     waitingMessage.style.display = 'none';
 
-                    // Afficher immédiatement une nouvelle lettre
-                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-                    letterEl.innerText = currentDisplayedLetter;
-                    letterEl.style.opacity = '1';
-                    waitingMessage.style.display = 'block';
-
-                    // Disparaît automatiquement après 60ms
-                    flashTimeout = setTimeout(() => {
-                        if (state === 'WAITING_VALIDATION') {
-                            letterEl.style.opacity = '0';
-                        }
-                    }, 60);
+                    // Afficher immédiatement une nouvelle lettre (sans lettre fixe intermédiaire)
+                    showRandomLetter();
                 }
             }
+        }
+
+        // Fonction pour afficher une nouvelle lettre aléatoire
+        function showRandomLetter() {
+            currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
+            letterEl.innerText = currentDisplayedLetter;
+            letterEl.style.opacity = '1';
+            waitingMessage.style.display = 'block';
+
+            // Disparaît automatiquement après 60ms
+            flashTimeout = setTimeout(() => {
+                if (state === 'WAITING_VALIDATION') {
+                    letterEl.style.opacity = '0';
+                }
+            }, 60);
         }
 
         // --- CALIBRATION ---
@@ -426,29 +431,16 @@
             requestAnimationFrame(loop);
         }
 
-        // --- MACHINE D'ÉTAT MODIFIÉE ---
+        // --- MACHINE D'ÉTAT ---
         function handleState(currentSpeed, now) {
             const minSpeedTrigger = 150;
-            const flashDuration = 60; // Valeur fixe à 60ms
             const cooldownDuration = 1000;
 
             if (state === 'IDLE') {
                 if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
                     state = 'WAITING_VALIDATION';
                     lastFlashTime = now;
-                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-                    letterEl.innerText = currentDisplayedLetter;
-                    letterEl.style.opacity = '1';
-
-                    waitingMessage.style.display = 'block';
-
-                    // Disparaît automatiquement après 60ms
-                    flashTimeout = setTimeout(() => {
-                        if (state === 'WAITING_VALIDATION') {
-                            letterEl.style.opacity = '0';
-                            // On reste en WAITING_VALIDATION jusqu'à validation
-                        }
-                    }, flashDuration);
+                    showRandomLetter();
                 }
             }
             // Dans l'état WAITING_VALIDATION, on ignore les mouvements de tête
