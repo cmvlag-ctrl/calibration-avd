@@ -80,7 +80,7 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
-        /* Clavier virtuel - CORRIGÉ pour 2 lignes */
+        /* Clavier virtuel */
         #keyboard {
             position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
@@ -222,7 +222,7 @@
             });
         }
 
-        // --- VALIDATION D'UNE LETTRE ---
+        // --- VALIDATION D'UNE LETTRE (LOGIQUE CORRIGÉE) ---
         function validateLetter(letter) {
             if (state !== 'WAITING_VALIDATION') return;
 
@@ -254,40 +254,60 @@
                     // Si validation réussie avant 3 erreurs, diminuer la taille
                     if (errorCount < 3) {
                         letterSizePx = Math.max(20, letterSizePx - 5);
+                    } else {
+                        // Si 3 erreurs ou plus, on ne change pas la taille
                     }
 
-                    // Réinitialiser les compteurs
-                    errorCount = 0;
-                    currentLetterAttempts = 0;
-
+                    // Passer à une nouvelle lettre
+                    displayNewLetter();
                     updateLetterDisplay();
                     updateStats();
                 } else {
                     clickedKey.classList.add('invalid');
                     errorCount++; // Incrémenter le compteur d'erreurs
 
-                    // Ajuster la taille de la lettre selon le nombre d'erreurs
+                    // Si 3 erreurs, augmenter la taille de la lettre
                     if (errorCount >= 3) {
-                        // Diminuer la taille de la lettre
-                        letterSizePx = Math.max(20, letterSizePx - 5);
+                        letterSizePx = Math.min(300, letterSizePx + 10);
                     } else {
-                        // Augmenter la taille de la lettre après une erreur
-                        letterSizePx = Math.min(300, letterSizePx + 5);
+                        // Sinon, réafficher la même lettre pour permettre à l'utilisateur de réessayer
+                        letterEl.style.opacity = '1';
+                        flashTimeout = setTimeout(() => {
+                            if (state === 'WAITING_VALIDATION') {
+                                letterEl.style.opacity = '0';
+                            }
+                        }, 60);
+                        return; // On ne passe pas à une nouvelle lettre
                     }
 
-                    letterSizeInputEl.value = letterSizePx;
-                    updateAcuityFromSize();
+                    // Passer à une nouvelle lettre après 3 erreurs
+                    displayNewLetter();
+                    updateLetterDisplay();
                     updateStats();
-
-                    // Réafficher la même lettre pour permettre à l'utilisateur de réessayer
-                    letterEl.style.opacity = '1';
-                    flashTimeout = setTimeout(() => {
-                        if (state === 'WAITING_VALIDATION') {
-                            letterEl.style.opacity = '0';
-                        }
-                    }, 60);
                 }
             }
+        }
+
+        // --- AFFICHER UNE NOUVELLE LETTRE ---
+        function displayNewLetter() {
+            // Réinitialiser les compteurs pour la nouvelle lettre
+            errorCount = 0;
+            currentLetterAttempts = 0;
+
+            currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
+            letterEl.innerText = currentDisplayedLetter;
+            letterEl.style.fontSize = letterSizePx + 'px';
+            letterEl.style.opacity = '1';
+            state = 'WAITING_VALIDATION';
+
+            waitingMessage.style.display = 'block';
+
+            // Disparaît automatiquement après 60ms
+            flashTimeout = setTimeout(() => {
+                if (state === 'WAITING_VALIDATION') {
+                    letterEl.style.opacity = '0';
+                }
+            }, 60);
         }
 
         // --- CALIBRATION ---
@@ -367,6 +387,8 @@
                     let baseDPI = dpr > 2 ? 450 : (dpr > 1 ? 300 : 150);
                     screenDPI = baseDPI * calibrationFactor;
 
+                    // Afficher la première lettre immédiatement
+                    displayNewLetter();
                     updateLetterDisplay();
                     loop();
                 };
@@ -416,7 +438,6 @@
                 lastHeadPos = { x: nose[0], y: nose[1] };
                 lastTime = now;
 
-                handleState(speed, now);
                 updateStats();
 
             } else {
@@ -425,37 +446,6 @@
                 updateStats();
             }
             requestAnimationFrame(loop);
-        }
-
-        // --- MACHINE D'ÉTAT MODIFIÉE ---
-        function handleState(currentSpeed, now) {
-            const minSpeedTrigger = 150;
-            const flashDuration = 60; // Valeur fixe à 60ms
-            const cooldownDuration = 1000;
-
-            if (state === 'IDLE') {
-                if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
-                    state = 'WAITING_VALIDATION';
-                    lastFlashTime = now;
-                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-                    letterEl.innerText = currentDisplayedLetter;
-                    letterEl.style.fontSize = letterSizePx + 'px';
-                    letterEl.style.opacity = '1';
-
-                    waitingMessage.style.display = 'block';
-
-                    // Réinitialiser les compteurs pour la nouvelle lettre
-                    errorCount = 0;
-                    currentLetterAttempts = 0;
-
-                    // Disparaît automatiquement après 60ms
-                    flashTimeout = setTimeout(() => {
-                        if (state === 'WAITING_VALIDATION') {
-                            letterEl.style.opacity = '0';
-                        }
-                    }, flashDuration);
-                }
-            }
         }
 
         // --- CALCUL TAILLE OPTIQUE ---
