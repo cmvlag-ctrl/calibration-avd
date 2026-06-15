@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Test AV - Détection Avancée avec Clavier</title>
+    <title>Test AV - Détection Avancée avec Clavier (Adaptatif)</title>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         video {
@@ -52,6 +52,8 @@
             display: flex; justify-content: center; align-items: center; width: 12mm;
         }
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
+
+        /* Contrôle pour la taille des lettres */
         #letterSizeControl {
             position: absolute; top: 10px; right: 10px; z-index: 20;
             background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
@@ -80,6 +82,8 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
+
+        /* Clavier virtuel */
         #keyboard {
             position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
             z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
@@ -103,6 +107,8 @@
             background: #dc3545;
             cursor: not-allowed;
         }
+
+        /* Message d'attente */
         #waitingMessage {
             position: fixed; bottom: 10px; left: 50%;
             transform: translateX(-50%);
@@ -113,11 +119,19 @@
             border-radius: 4px;
             white-space: nowrap;
         }
+
+        /* Stats adaptatives */
+        #adaptiveStats {
+            background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
+            margin-top: 10px; font-size: 11px;
+        }
+        .adaptive-stat { margin: 3px 0; }
     </style>
 </head>
-<body><div id="startOverlay">
-        <h1>Test Acuité (Pro)</h1>
-        <p>Détection de vitesse optimisée.</p>
+<body>
+    <div id="startOverlay">
+        <h1>Test Acuité Visuelle Adaptatif</h1>
+        <p>Détection automatique de la taille limite de lecture.</p>
         <button onclick="startApp()">DÉMARRER</button>
         <p id="errorMsg" class="error"></p>
     </div>
@@ -135,9 +149,12 @@
 
         <hr style="border-color:#333; margin: 5px 0;">
 
-        <div style="font-size:11px; margin-bottom:5px;">
-            Acuité: <span id="valAcuity">1.0</span>
-            <input type="range" id="acuity" min="0.1" max="2.0" step="0.1" value="1.0" oninput="updateParams()" style="width:100%; margin:0;">
+        <div id="adaptiveStats">
+            <div class="adaptive-stat">Essais: <span id="adaptiveTrials">0</span></div>
+            <div class="adaptive-stat">Correct: <span id="adaptiveCorrect">0</span></div>
+            <div class="adaptive-stat">Erreurs: <span id="adaptiveErrors">0</span></div>
+            <div class="adaptive-stat">Taux: <span id="adaptiveAccuracy">0</span>%</div>
+            <div class="adaptive-stat">Taille min: <span id="adaptiveMinSize">200</span>px</div>
         </div>
 
         <button class="secondary" onclick="toggleCalib()">📏 Calibrer l'écran</button>
@@ -155,10 +172,10 @@
     <!-- Contrôle pour la taille des lettres -->
     <div id="letterSizeControl" style="display:none;">
         <div id="letterSizeLabel">Taille lettre (px)</div>
-        <div id="letterSizeValue">80</div>
+        <div id="letterSizeValue">200</div>
         <div class="size-control-buttons">
             <button class="size-btn secondary" onclick="adjustLetterSize(-10)">-</button>
-            <input type="number" id="letterSizeInput" min="20" max="300" value="80" onchange="updateLetterSizeFromInput()">
+            <input type="number" id="letterSizeInput" min="20" max="300" value="200" onchange="updateLetterSizeFromInput()">
             <button class="size-btn secondary" onclick="adjustLetterSize(10)">+</button>
         </div>
     </div>
@@ -169,7 +186,9 @@
     </div>
 
     <!-- Message d'attente -->
-    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div><script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
     <script>
@@ -184,11 +203,21 @@
         let keyboard = document.getElementById('keyboard');
         let waitingMessage = document.getElementById('waitingMessage');
 
-        // Paramètres
+        // Paramètres adaptatifs
+        const adaptiveConfig = {
+            minFontSize: 20,          // Taille minimale (px)
+            maxFontSize: 300,         // Taille maximale (px)
+            sizeDecreaseFactor: 0.9,  // Réduction après bonne réponse
+            sizeIncreaseFactor: 1.1,  // Augmentation après erreur
+            maxErrorsInRow: 3,       // Arrêt après 3 erreurs consécutives
+            nextDelay: 500            // Délai entre les essais (ms)
+        };
+
+        // Paramètres initiaux
         let acuity = 1.0;
         let screenDPI = 300;
         let calibrationFactor = 1.0;
-        let letterSizePx = 80;
+        let letterSizePx = 200;  // Taille initiale plus grande pour le test adaptatif
 
         // Tracking
         let lastHeadPos = null;
@@ -197,17 +226,20 @@
         let smoothedSpeed = 0;
         let distance = 50;
         let rawDistance = 50;
-        let state = 'IDLE'; // IDLE, WAITING_VALIDATION
+        let state = 'IDLE'; // IDLE, WAITING_VALIDATION, TEST_COMPLETED
         let lastFlashTime = 0;
         let currentDisplayedLetter = null;
         let flashTimeout = null;
 
-        // Gestion des erreurs consécutives
-        let consecutiveErrors = 0;
-        let lastValidatedLetter = null;
-        let attemptsForCurrentLetter = 0;
+        // Statistiques adaptatives
+        let adaptiveStats = {
+            totalTrials: 0,
+            correctAnswers: 0,
+            errorsInRow: 0,
+            minSizeReached: 200
+        };
 
-        // Liste des lettres (valeur fixe)
+        // Liste des lettres
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
 
         // --- INITIALISATION DU CLAVIER ---
@@ -235,57 +267,77 @@
             }
 
             const keys = document.querySelectorAll('.key');
-
-            // Réinitialiser tous les styles
             keys.forEach(k => {
                 k.classList.remove('validated', 'invalid');
             });
 
-            // Trouver la touche cliquée
             const clickedKey = Array.from(keys).find(k => k.textContent === letter);
 
             if (clickedKey) {
-                if (letter === currentDisplayedLetter) {
-                    // SUCCÈS
+                const isCorrect = letter === currentDisplayedLetter;
+                adaptiveStats.totalTrials++;
+
+                if (isCorrect) {
                     clickedKey.classList.add('validated');
-                    consecutiveErrors = 0; // Réinitialiser les erreurs consécutives
-                    attemptsForCurrentLetter = 0; // Réinitialiser les tentatives pour cette lettre
+                    adaptiveStats.correctAnswers++;
+                    adaptiveStats.errorsInRow = 0;
 
-                    // Ajuster la taille selon le nombre d'essais
-                    if (attemptsForCurrentLetter === 1) {
-                        // Réussite du premier coup
-                        letterSizePx = Math.max(20, letterSizePx - 5);
-                    }
-                    // Sinon : taille inchangée
+                    // Réduire la taille (mais pas en dessous du minimum)
+                    letterSizePx = Math.max(
+                        adaptiveConfig.minFontSize,
+                        Math.round(letterSizePx * adaptiveConfig.sizeDecreaseFactor)
+                    );
 
-                    displayNewLetter();
+                    // Mettre à jour la taille minimale atteinte
+                    adaptiveStats.minSizeReached = Math.min(adaptiveStats.minSizeReached, letterSizePx);
                 } else {
-                    // ÉCHEC
                     clickedKey.classList.add('invalid');
-                    attemptsForCurrentLetter++;
+                    adaptiveStats.errorsInRow++;
 
-                    // Vérifier si c'est une nouvelle lettre différente de la dernière validée
-                    if (lastValidatedLetter !== letter) {
-                        consecutiveErrors++;
-                        lastValidatedLetter = letter;
+                    // Augmenter la taille après erreur
+                    letterSizePx = Math.min(
+                        adaptiveConfig.maxFontSize,
+                        Math.round(letterSizePx * adaptiveConfig.sizeIncreaseFactor)
+                    );
 
-                        // Si 3 erreurs consécutives sur des lettres différentes
-                        if (consecutiveErrors >= 3) {
-                            letterSizePx = Math.min(300, letterSizePx + 5);
-                            consecutiveErrors = 0; // Réinitialiser après ajustement
-                        }
+                    // Ne pas dépasser le maximum
+                    if (letterSizePx > adaptiveConfig.maxFontSize) {
+                        letterSizePx = adaptiveConfig.maxFontSize;
                     }
-
-                    // Ne pas passer en IDLE, l'utilisateur doit réessayer
                 }
+
+                // Vérifier si on doit arrêter le test
+                if (adaptiveStats.errorsInRow >= adaptiveConfig.maxErrorsInRow) {
+                    endAdaptiveTest();
+                    return;
+                }
+
+                // Mettre à jour l'affichage
+                updateAdaptiveStats();
+                updateLetterDisplay();
+                letterSizeInputEl.value = letterSizePx;
+
+                // Afficher la nouvelle lettre après un délai
+                setTimeout(() => {
+                    if (!isCorrect) {
+                        // Si erreur, afficher immédiatement la même lettre avec nouvelle taille
+                        showNextLetter();
+                    } else {
+                        // Si correct, afficher la nouvelle lettre après le délai
+                        showNextLetter();
+                    }
+                }, adaptiveConfig.nextDelay);
+
+                // Faire disparaître la lettre
+                letterEl.style.opacity = '0';
+                state = 'IDLE';
+                waitingMessage.style.display = 'none';
             }
         }
 
-        // --- AFFICHAGE D'UNE NOUVELLE LETTRE ---
-        function displayNewLetter() {
-            state = 'IDLE';
-            letterEl.style.opacity = '0';
-            waitingMessage.style.display = 'none';
+        // --- AFFICHAGE DE LA PROCHAINE LETTRE ---
+        function showNextLetter() {
+            if (state === 'TEST_COMPLETED') return;
 
             currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
             letterEl.innerText = currentDisplayedLetter;
@@ -293,17 +345,48 @@
             letterEl.style.opacity = '1';
 
             state = 'WAITING_VALIDATION';
-            lastFlashTime = performance.now();
+            waitingMessage.style.display = 'block';
 
             // Disparaît automatiquement après 60ms
             flashTimeout = setTimeout(() => {
                 if (state === 'WAITING_VALIDATION') {
                     letterEl.style.opacity = '0';
-                    // On reste en WAITING_VALIDATION jusqu'à validation
                 }
             }, 60);
+        }
 
-            updateStats();
+        // --- FIN DU TEST ADAPTATIF ---
+        function endAdaptiveTest() {
+            state = 'TEST_COMPLETED';
+            clearTimeout(flashTimeout);
+
+            // Désactiver le clavier
+            const keys = document.querySelectorAll('.key');
+            keys.forEach(k => {
+                k.style.background = '#444';
+                k.style.cursor = 'not-allowed';
+                k.onclick = null;
+            });
+
+            // Afficher le message de fin
+            letterEl.style.opacity = '0';
+            waitingMessage.style.display = 'none';
+            letterEl.innerText = "Test terminé";
+            letterEl.style.fontSize = '100px';
+            letterEl.style.opacity = '1';
+
+            // Calculer le taux de réussite
+            const accuracy = adaptiveStats.totalTrials > 0
+                ? Math.round((adaptiveStats.correctAnswers / adaptiveStats.totalTrials) * 100)
+                : 0;
+
+            // Afficher les résultats
+            alert(`Test terminé!\n\n` +
+                  `Essais: ${adaptiveStats.totalTrials}\n` +
+                  `Correct: ${adaptiveStats.correctAnswers}\n` +
+                  `Erreurs: ${adaptiveStats.errorsInRow}\n` +
+                  `Taux de réussite: ${accuracy}%\n` +
+                  `Taille minimale atteinte: ${adaptiveStats.minSizeReached}px`);
         }
 
         // --- CALIBRATION ---
@@ -332,9 +415,8 @@
         // --- GESTION DE LA TAILLE DES LETTRES ---
         function updateLetterSizeFromInput() {
             const newSize = parseInt(letterSizeInputEl.value);
-            if (!isNaN(newSize) && newSize >= 20 && newSize <= 300) {
+            if (!isNaN(newSize) && newSize >= adaptiveConfig.minFontSize && newSize <= adaptiveConfig.maxFontSize) {
                 letterSizePx = newSize;
-                updateAcuityFromSize();
                 updateLetterDisplay();
                 updateStats();
             }
@@ -342,26 +424,41 @@
         }
 
         function adjustLetterSize(delta) {
-            letterSizePx = Math.max(20, Math.min(300, letterSizePx + delta));
+            letterSizePx = Math.max(adaptiveConfig.minFontSize,
+                                   Math.min(adaptiveConfig.maxFontSize, letterSizePx + delta));
             letterSizeInputEl.value = letterSizePx;
-            updateAcuityFromSize();
             updateLetterDisplay();
             updateStats();
         }
 
-        function updateAcuityFromSize() {
-            acuity = (distance * 0.0145 * screenDPI) / (2.54 * letterSizePx);
-            acuity = Math.max(0.1, Math.min(2.0, acuity));
-            document.getElementById('acuity').value = acuity.toFixed(1);
-            document.getElementById('valAcuity').innerText = acuity.toFixed(1);
-        }
-
         function updateLetterDisplay() {
             letterSizeValueEl.innerText = letterSizePx;
+            letterEl.style.fontSize = letterSizePx + 'px';
+        }
+
+        // --- MISE À JOUR DES STATISTIQUES ADAPTATIVES ---
+        function updateAdaptiveStats() {
+            document.getElementById('adaptiveTrials').textContent = adaptiveStats.totalTrials;
+            document.getElementById('adaptiveCorrect').textContent = adaptiveStats.correctAnswers;
+            document.getElementById('adaptiveErrors').textContent = adaptiveStats.errorsInRow;
+            document.getElementById('adaptiveMinSize').textContent = adaptiveStats.minSizeReached;
+
+            const accuracy = adaptiveStats.totalTrials > 0
+                ? Math.round((adaptiveStats.correctAnswers / adaptiveStats.totalTrials) * 100)
+                : 0;
+            document.getElementById('adaptiveAccuracy').textContent = accuracy;
         }
 
         // --- DÉMARRAGE ---
         async function startApp() {
+            // Réinitialiser les statistiques
+            adaptiveStats = {
+                totalTrials: 0,
+                correctAnswers: 0,
+                errorsInRow: 0,
+                minSizeReached: 200
+            };
+
             loadCalib();
             initKeyboard();
             try {
@@ -384,7 +481,7 @@
                     screenDPI = baseDPI * calibrationFactor;
 
                     updateLetterDisplay();
-                    displayNewLetter(); // Afficher la première lettre
+                    updateAdaptiveStats();
                     loop();
                 };
             } catch (err) {
@@ -394,7 +491,7 @@
 
         // --- BOUCLE PRINCIPALE ---
         async function loop() {
-            if (!model) return;
+            if (!model || state === 'TEST_COMPLETED') return;
 
             const predictions = await model.estimateFaces(video, false);
 
@@ -433,28 +530,24 @@
                 lastHeadPos = { x: nose[0], y: nose[1] };
                 lastTime = now;
 
+                updateStats();
             } else {
                 smoothedSpeed = smoothedSpeed * 0.9;
                 speed = smoothedSpeed * 1000;
+                updateStats();
             }
+
+            // Démarrer le test adaptatif après une brève initialisation
+            if (state === 'IDLE' && adaptiveStats.totalTrials === 0) {
+                setTimeout(() => {
+                    showNextLetter();
+                }, 2000);
+            }
+
             requestAnimationFrame(loop);
         }
 
-        // --- CALCUL TAILLE OPTIQUE ---
-        function calculateSize(distCm, acuityDecimal) {
-            let heightCm = (distCm * 0.0145) / acuityDecimal;
-            let heightPx = (heightCm / 2.54) * screenDPI;
-            return Math.max(20, Math.round(heightPx));
-        }
-
-        function updateParams() {
-            acuity = parseFloat(document.getElementById('acuity').value);
-            document.getElementById('valAcuity').innerText = acuity.toFixed(1);
-            letterSizePx = Math.round(calculateSize(distance, acuity));
-            updateLetterDisplay();
-            letterSizeInputEl.value = letterSizePx;
-        }
-
+        // --- MISE À JOUR DES STATISTIQUES ---
         function updateStats() {
             document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
             document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
