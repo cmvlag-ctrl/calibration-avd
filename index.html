@@ -32,9 +32,7 @@
         .speed-bar {
             height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #ff0, #f00);
             transition: width 0.1s linear;
-        }
-
-        button {
+        }button {
             background: #4ecdc4; border: none; padding: 10px; border-radius: 5px;
             cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px;
         }
@@ -53,7 +51,6 @@
             display: flex; justify-content: center; align-items: center; width: 12mm;
         }
         .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
-
         /* Contrôle pour la taille des lettres */
         #letterSizeControl {
             position: absolute; top: 10px; right: 10px; z-index: 20;
@@ -83,7 +80,6 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
-
         /* Clavier virtuel - CORRIGÉ pour 2 lignes */
         #keyboard {
             position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
@@ -120,9 +116,7 @@
         }
     </style>
 </head>
-<body>
-
-    <div id="startOverlay">
+<body><div id="startOverlay">
         <h1>Test Acuité (Pro)</h1>
         <p>Détection de vitesse optimisée.</p>
         <button onclick="startApp()">DÉMARRER</button>
@@ -176,9 +170,7 @@
     </div>
 
     <!-- Message d'attente -->
-    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
-
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div><script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
 
     <script>
@@ -210,11 +202,10 @@
         let lastFlashTime = 0;
         let currentDisplayedLetter = null;
         let flashTimeout = null;
+        let errorCount = 0; // Compteur d'erreurs consécutives
 
         // Liste des lettres (valeur fixe)
-        const letters = "D F P V A N L C O E R U S Z H".split(" ");
-
-        // --- INITIALISATION DU CLAVIER ---
+        const letters = "D F P V A N L C O E R U S Z H".split(" ");// --- INITIALISATION DU CLAVIER ---
         function initKeyboard() {
             keyboard.innerHTML = '';
             const lettersSorted = [...letters].sort();
@@ -254,15 +245,30 @@
                     letterEl.style.opacity = '0'; // Faire disparaître immédiatement
                     state = 'IDLE';
                     waitingMessage.style.display = 'none';
+                    errorCount = 0; // Réinitialiser le compteur d'erreurs
                     updateStats();
                 } else {
                     clickedKey.classList.add('invalid');
+                    errorCount++; // Incrémenter le compteur d'erreurs
+
+                    // Ajuster la taille de la lettre selon le nombre d'erreurs
+                    if (errorCount >= 3) {
+                        // Diminuer la taille de la lettre
+                        letterSizePx = Math.max(20, letterSizePx - 5);
+                    } else {
+                        // Augmenter la taille de la lettre après une erreur
+                        letterSizePx = Math.min(300, letterSizePx + 5);
+                    }
+
+                    letterSizeInputEl.value = letterSizePx;
+                    updateAcuityFromSize();
+                    updateLetterDisplay();
+                    updateStats();
+
                     // Ne pas passer en IDLE, l'utilisateur doit réessayer
                 }
             }
-        }
-
-        // --- CALIBRATION ---
+        }// --- CALIBRATION ---
         function toggleCalib() {
             const panel = document.getElementById('calibPanel');
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -296,7 +302,6 @@
             }
             letterSizeInputEl.value = letterSizePx;
         }
-
         function adjustLetterSize(delta) {
             letterSizePx = Math.max(20, Math.min(300, letterSizePx + delta));
             letterSizeInputEl.value = letterSizePx;
@@ -314,9 +319,7 @@
 
         function updateLetterDisplay() {
             letterSizeValueEl.innerText = letterSizePx;
-        }
-
-        // --- DÉMARRAGE ---
+        }// --- DÉMARRAGE ---
         async function startApp() {
             loadCalib();
             initKeyboard();
@@ -370,9 +373,7 @@
                     rawDistance = calculatedDist;
                     distance = (distance * 0.9) + (rawDistance * 0.1);
                     distance = Math.max(30, Math.min(120, distance));
-                }
-
-                // 2. VITESSE
+                }// 2. VITESSE
                 const now = performance.now();
                 if (lastHeadPos) {
                     const dt = (now - lastTime);
@@ -409,7 +410,6 @@
                 if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
                     state = 'WAITING_VALIDATION';
                     lastFlashTime = now;
-
                     currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
                     letterEl.innerText = currentDisplayedLetter;
                     letterEl.style.fontSize = letterSizePx + 'px';
@@ -443,7 +443,6 @@
             updateLetterDisplay();
             letterSizeInputEl.value = letterSizePx;
         }
-
         function updateStats() {
             document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
             document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
