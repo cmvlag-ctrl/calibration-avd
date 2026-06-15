@@ -202,7 +202,8 @@
         let lastFlashTime = 0;
         let currentDisplayedLetter = null;
         let flashTimeout = null;
-        let errorCount = 0; // Compteur d'erreurs consécutives
+        let errorCount = 0; // Compteur d'erreurs pour la lettre actuelle
+        let currentLetterAttempts = 0; // Nombre d'essais pour la lettre actuelle
 
         // Liste des lettres (valeur fixe)
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
@@ -242,12 +243,24 @@
             const clickedKey = Array.from(keys).find(k => k.textContent === letter);
 
             if (clickedKey) {
+                currentLetterAttempts++; // Incrémenter le compteur d'essais
+
                 if (letter === currentDisplayedLetter) {
                     clickedKey.classList.add('validated');
-                    letterEl.style.opacity = '0'; // Faire disparaître immédiatement
+                    letterEl.style.opacity = '0';
                     state = 'IDLE';
                     waitingMessage.style.display = 'none';
-                    errorCount = 0; // Réinitialiser le compteur d'erreurs
+
+                    // Si validation réussie avant 3 erreurs, diminuer la taille
+                    if (errorCount < 3) {
+                        letterSizePx = Math.max(20, letterSizePx - 5);
+                    }
+
+                    // Réinitialiser les compteurs
+                    errorCount = 0;
+                    currentLetterAttempts = 0;
+
+                    updateLetterDisplay();
                     updateStats();
                 } else {
                     clickedKey.classList.add('invalid');
@@ -264,7 +277,6 @@
 
                     letterSizeInputEl.value = letterSizePx;
                     updateAcuityFromSize();
-                    updateLetterDisplay();
                     updateStats();
 
                     // Réafficher la même lettre pour permettre à l'utilisateur de réessayer
@@ -431,6 +443,10 @@
                     letterEl.style.opacity = '1';
 
                     waitingMessage.style.display = 'block';
+
+                    // Réinitialiser les compteurs pour la nouvelle lettre
+                    errorCount = 0;
+                    currentLetterAttempts = 0;
 
                     // Disparaît automatiquement après 60ms
                     flashTimeout = setTimeout(() => {
