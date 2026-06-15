@@ -202,6 +202,7 @@
         let lastFlashTime = 0;
         let currentDisplayedLetter = null;
         let flashTimeout = null;
+        let errorFlag = false; // Nouveau flag pour gérer les erreurs
 
         // Liste des lettres (valeur fixe)
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
@@ -256,8 +257,10 @@
                     updateStats();
 
                     state = 'IDLE';
+                    errorFlag = false;
                 } else {
                     clickedKey.classList.add('invalid');
+                    errorFlag = true; // On marque qu'il y a eu une erreur
 
                     // Augmenter la taille de la lettre de 5px après une erreur
                     letterSizePx = Math.min(300, letterSizePx + 5);
@@ -266,29 +269,13 @@
 
                     updateAcuityFromSize();
                     updateLetterDisplay();
-                    updateStats();
 
-                    // Réinitialiser l'état et afficher immédiatement une nouvelle lettre
-                    state = 'WAITING_VALIDATION';
+                    // On reste en WAITING_VALIDATION mais on masque la lettre
+                    letterEl.style.opacity = '0';
                     waitingMessage.style.display = 'none';
-                    displayNewLetter();
+                    updateStats();
                 }
             }
-        }
-
-        // Fonction pour afficher une nouvelle lettre aléatoire
-        function displayNewLetter() {
-            currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-            letterEl.innerText = currentDisplayedLetter;
-            letterEl.style.opacity = '1';
-            waitingMessage.style.display = 'block';
-
-            // Disparaît automatiquement après 60ms
-            flashTimeout = setTimeout(() => {
-                if (state === 'WAITING_VALIDATION') {
-                    letterEl.style.opacity = '0';
-                }
-            }, 60);
         }
 
         // --- CALIBRATION ---
@@ -429,7 +416,7 @@
             requestAnimationFrame(loop);
         }
 
-        // --- MACHINE D'ÉTAT ---
+        // --- MACHINE D'ÉTAT (CORRIGÉE) ---
         function handleState(currentSpeed, now) {
             const minSpeedTrigger = 150;
             const cooldownDuration = 1000;
@@ -438,10 +425,21 @@
                 if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
                     state = 'WAITING_VALIDATION';
                     lastFlashTime = now;
-                    displayNewLetter();
+                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
+                    letterEl.innerText = currentDisplayedLetter;
+                    letterEl.style.opacity = '1';
+                    waitingMessage.style.display = 'block';
+
+                    // Disparaît automatiquement après 60ms
+                    flashTimeout = setTimeout(() => {
+                        if (state === 'WAITING_VALIDATION') {
+                            letterEl.style.opacity = '0';
+                        }
+                    }, 60);
                 }
             }
             // Dans l'état WAITING_VALIDATION, on ignore les mouvements de tête
+            // Sauf si on vient d'une erreur (errorFlag), alors on reste en WAITING_VALIDATION
         }
 
         // --- CALCUL TAILLE OPTIQUE ---
