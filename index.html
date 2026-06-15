@@ -261,6 +261,8 @@
                     updateStats();
                 } else {
                     clickedKey.classList.add('invalid');
+
+                    // Incrémenter le compteur d'erreurs
                     errorCount++;
 
                     // Si 3 erreurs consécutives : augmenter la taille de 20px
@@ -270,7 +272,9 @@
                         errorCount = 0; // Réinitialiser le compteur
                     }
 
-                    // Ne pas passer en IDLE, l'utilisateur doit réessayer
+                    // Réafficher la même lettre pour que l'utilisateur réessaye
+                    letterEl.style.opacity = '1';
+                    letterEl.style.fontSize = currentLetterSize + 'px';
                 }
             }
         }
