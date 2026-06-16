@@ -241,7 +241,7 @@
         <div id="letterSizeValue">80</div>
         <div class="size-control-buttons">
             <button class="size-btn secondary" onclick="adjustLetterSize(-10)">-</button>
-            <input type="number" id="letterSizeInput" min="20" max="300" value="80" onchange="updateLetterSizeFromInput()">
+            <input type="number" id="letterSizeInput" min="5" max="300" value="80" onchange="updateLetterSizeFromInput()">
             <button class="size-btn secondary" onclick="adjustLetterSize(10)">+</button>
         </div>
     </div>
@@ -299,9 +299,6 @@
         let letterSizeInputEl = document.getElementById('letterSizeInput');
         let letterSizeValueEl = document.getElementById('letterSizeValue');
         let scoreTopPanel = document.getElementById('scoreTopPanel');
-
-        // Position verticale de la lettre (5px max de descente)
-        let letterVerticalOffset = 0;
 
         // Statistiques
         let totalLetters = 0;
@@ -377,7 +374,10 @@
                     correctLetters++;
                     clickedKey.classList.add('validated');
                     letterEl.style.opacity = '0';
-                    letterSizePx = Math.max(20, letterSizePx - 5);
+
+                    // Réduire la taille de la lettre de 5px à chaque bonne réponse
+                    // jusqu'à atteindre un minimum de 5px
+                    letterSizePx = Math.max(5, letterSizePx - 5);
 
                     if (letterSizePx < minSuccessfulLetterSize) {
                         minSuccessfulLetterSize = letterSizePx;
@@ -463,7 +463,6 @@
                 down: { count: 0, correct: 0, minSize: Infinity }
             };
             lastMovementDirection = null;
-            letterVerticalOffset = 0; // Réinitialiser la position verticale
 
             // Réinitialiser l'affichage
             updateScore();
@@ -504,7 +503,7 @@
         // --- GESTION DE LA TAILLE DES LETTRES ---
         function updateLetterSizeFromInput() {
             const newSize = parseInt(letterSizeInputEl.value);
-            if (!isNaN(newSize) && newSize >= 20 && newSize <= 300) {
+            if (!isNaN(newSize) && newSize >= 5 && newSize <= 300) {
                 letterSizePx = newSize;
                 updateLetterDisplay();
                 updateStats();
@@ -513,7 +512,7 @@
         }
 
         function adjustLetterSize(delta) {
-            letterSizePx = Math.max(20, Math.min(300, letterSizePx + delta));
+            letterSizePx = Math.max(5, Math.min(300, letterSizePx + delta));
             letterSizeInputEl.value = letterSizePx;
             updateLetterDisplay();
             updateStats();
@@ -524,8 +523,6 @@
         function updateLetterDisplay() {
             letterSizeValueEl.innerText = letterSizePx;
             letterEl.style.fontSize = letterSizePx + 'px';
-            // Appliquer le décalage vertical (max 5px de descente)
-            letterEl.style.transform = `translate(-50%, calc(-50% + ${letterVerticalOffset}px))`;
         }
 
         // --- DÉMARRAGE ---
@@ -638,12 +635,8 @@
                 } else {
                     // Mouvement vertical dominant
                     if (dy > 0) {
-                        // Descendre de 5px max
-                        letterVerticalOffset = Math.min(letterVerticalOffset + 5, 5);
                         updateMovementStats('down', false);
                     } else {
-                        // Remonter
-                        letterVerticalOffset = Math.max(letterVerticalOffset - 5, -100);
                         updateMovementStats('up', false);
                     }
                 }
@@ -693,7 +686,7 @@
         function calculateSize(distCm, acuityDecimal) {
             let heightCm = (distCm * 0.0145) / acuityDecimal;
             let heightPx = (heightCm / 2.54) * screenDPI;
-            return Math.max(20, Math.round(heightPx));
+            return Math.max(5, Math.round(heightPx));
         }
 
         function updateStats() {
