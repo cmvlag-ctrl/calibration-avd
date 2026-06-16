@@ -300,6 +300,9 @@
         let letterSizeValueEl = document.getElementById('letterSizeValue');
         let scoreTopPanel = document.getElementById('scoreTopPanel');
 
+        // Position verticale de la lettre (5px max de descente)
+        let letterVerticalOffset = 0;
+
         // Statistiques
         let totalLetters = 0;
         let correctLetters = 0;
@@ -460,6 +463,7 @@
                 down: { count: 0, correct: 0, minSize: Infinity }
             };
             lastMovementDirection = null;
+            letterVerticalOffset = 0; // Réinitialiser la position verticale
 
             // Réinitialiser l'affichage
             updateScore();
@@ -520,6 +524,8 @@
         function updateLetterDisplay() {
             letterSizeValueEl.innerText = letterSizePx;
             letterEl.style.fontSize = letterSizePx + 'px';
+            // Appliquer le décalage vertical (max 5px de descente)
+            letterEl.style.transform = `translate(-50%, calc(-50% + ${letterVerticalOffset}px))`;
         }
 
         // --- DÉMARRAGE ---
@@ -632,8 +638,12 @@
                 } else {
                     // Mouvement vertical dominant
                     if (dy > 0) {
+                        // Descendre de 5px max
+                        letterVerticalOffset = Math.min(letterVerticalOffset + 5, 5);
                         updateMovementStats('down', false);
                     } else {
+                        // Remonter
+                        letterVerticalOffset = Math.max(letterVerticalOffset - 5, -100);
                         updateMovementStats('up', false);
                     }
                 }
