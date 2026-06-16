@@ -83,7 +83,7 @@
         /* Clavier virtuel - POSITIONNÉ EN BAS DE L'ÉCRAN */
         #keyboard {
             position: fixed;
-            bottom: 20px; /* Positionné tout en bas */
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 30;
@@ -132,7 +132,7 @@
         }
         #scoreDisplay {
             position: fixed;
-            bottom: 70px; /* Positionné juste au-dessus du clavier */
+            bottom: 120px; /* Positionné plus haut pour libérer le Z */
             left: 50%;
             transform: translateX(-50%);
             z-index: 30;
@@ -148,27 +148,38 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        /* Boutons Calibrer et FIN réduits et alignés avec le Z */
-        .keyboard-controls {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            margin-top: 10px;
-            grid-column: 1 / -1;
+        /* Boutons FIN et Calibrer en position fixe à droite et gauche */
+        #leftControls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 30;
         }
-        .keyboard-controls button {
-            width: 120px; /* Taille réduite */
-            padding: 6px; /* Padding réduit */
+        #rightControls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 30;
+        }
+        .control-btn {
+            width: 100px;
+            padding: 8px;
             font-size: 12px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 5px;
         }
-        .calib-button {
+        .calib-btn {
             background: #555 !important;
+            color: white !important;
         }
-        .finish-button {
+        .finish-btn {
             background: #ffc107 !important;
             color: #000 !important;
         }
-        .finish-button:hover {
+        .finish-btn:hover {
             background: #ffd54f !important;
         }
         #finalStatsOverlay {
@@ -242,7 +253,14 @@
 
     <div id="scoreDisplay">Score: --% | Min: -- px</div>
 
-    <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
+    <!-- Boutons FIN et Calibrer en position fixe -->
+    <div id="leftControls" style="display:none;">
+        <button class="control-btn calib-btn" onclick="toggleCalib()">📏 Calibrer</button>
+    </div>
+    <div id="rightControls" style="display:none;">
+        <button class="control-btn finish-btn" onclick="showFinalStats()">FIN</button>
+    </div>
+
     <div id="finalStatsOverlay">
         <h2 class="final-stat-title">Statistiques Finales</h2>
         <div class="final-stat-box">
@@ -282,8 +300,8 @@
         let letterSizeControl = document.getElementById('letterSizeControl');
         let keyboard = document.getElementById('keyboard');
         let scoreDisplay = document.getElementById('scoreDisplay');
-        let waitingMessage = document.getElementById('waitingMessage');
-        let finalStatsOverlay = document.getElementById('finalStatsOverlay');
+        let leftControls = document.getElementById('leftControls');
+        let rightControls = document.getElementById('rightControls');
         let letterSizeInputEl = document.getElementById('letterSizeInput');
         let letterSizeValueEl = document.getElementById('letterSizeValue');
 
@@ -337,24 +355,6 @@
                 key.onclick = () => validateLetter(letter);
                 keyboard.appendChild(key);
             });
-
-            // Ajout des boutons FIN et Calibrer sur la même ligne que Z
-            const controlsDiv = document.createElement('div');
-            controlsDiv.className = 'keyboard-controls';
-
-            const calibButton = document.createElement('button');
-            calibButton.className = 'calib-button secondary';
-            calibButton.textContent = '📏 Calibrer';
-            calibButton.onclick = toggleCalib;
-
-            const finishButton = document.createElement('button');
-            finishButton.className = 'finish-button';
-            finishButton.textContent = 'FIN';
-            finishButton.onclick = showFinalStats;
-
-            controlsDiv.appendChild(calibButton);
-            controlsDiv.appendChild(finishButton);
-            keyboard.appendChild(controlsDiv);
         }
 
         // --- VALIDATION D'UNE LETTRE ---
@@ -403,9 +403,6 @@
                 updateStats();
 
                 state = 'IDLE';
-                waitingMessage.style.display = 'none';
-                waitingMessage.textContent = "Faites un mouvement de tête pour continuer";
-                waitingMessage.style.display = 'block';
             }
         }
 
@@ -544,6 +541,8 @@
                     ui.style.display = 'block';
                     letterSizeControl.style.display = 'block';
                     keyboard.style.display = 'flex';
+                    leftControls.style.display = 'block';
+                    rightControls.style.display = 'block';
                     video.play();
                     document.getElementById('statusInit').innerText = "Chargement IA...";
                     model = await blazeface.load();
@@ -675,8 +674,6 @@
                     currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
                     letterEl.innerText = currentDisplayedLetter;
                     letterEl.style.opacity = '1';
-                    waitingMessage.textContent = "⏳ Validez la lettre affichée pour continuer";
-                    waitingMessage.style.display = 'block';
 
                     flashTimeout = setTimeout(() => {
                         if (state === 'WAITING_VALIDATION') {
