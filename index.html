@@ -8,7 +8,7 @@
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         video {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover; opacity: 0.2; z-index: 1; transform: scaleX(-1);
+            object-fit: cover; opacity: 0.5; z-index: 1; transform: scaleX(-1);
         }
         #letterDisplay {
             position: absolute; top: 50%; left: 50%;
@@ -80,7 +80,7 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
-        /* Clavier virtuel - POSITIONNÉ EN BAS DE L'ÉCRAN */
+        /* Clavier virtuel */
         #keyboard {
             position: fixed;
             bottom: 20px;
@@ -90,7 +90,7 @@
             background: rgba(0,0,0,0.8);
             padding: 12px;
             border-radius: 8px;
-            display: none;
+            display: none; /* Masqué par défaut */
             flex-wrap: wrap;
             justify-content: center;
             gap: 6px;
@@ -98,8 +98,8 @@
             max-width: 550px;
         }
         .key {
-            min-width: 60px;
-            min-height: 60px;
+            width: 60px; /* Augmenté pour mobile */
+            height: 60px; /* Augmenté pour mobile */
             background: #333;
             color: white;
             border: none;
@@ -111,14 +111,10 @@
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
-            touch-action: manipulation;
         }
         .key:hover {
             background: #555;
             transform: scale(1.1);
-        }
-        .key:active {
-            transform: scale(0.95);
         }
         .key.validated {
             background: #28a745;
@@ -149,20 +145,18 @@
             text-align: center;
             white-space: nowrap;
         }
-        /* Boutons FIN et Calibrer en position fixe à droite et gauche */
+        /* Boutons FIN et Calibrer */
         #leftControls {
             position: fixed;
             bottom: 20px;
             left: 20px;
             z-index: 30;
-            display: none;
         }
         #rightControls {
             position: fixed;
             bottom: 20px;
             right: 20px;
             z-index: 30;
-            display: none;
         }
         .control-btn {
             width: 100px;
@@ -256,11 +250,11 @@
         <!-- Clavier généré par JavaScript -->
     </div>
 
-    <!-- Boutons FIN et Calibrer en position fixe -->
-    <div id="leftControls">
+    <!-- Boutons FIN et Calibrer -->
+    <div id="leftControls" style="display:none;">
         <button class="control-btn calib-btn" onclick="toggleCalib()">📏 Calibrer</button>
     </div>
-    <div id="rightControls">
+    <div id="rightControls" style="display:none;">
         <button class="control-btn finish-btn" onclick="showFinalStats()">FIN</button>
     </div>
 
@@ -280,7 +274,7 @@
         <div class="final-stat-box">
             <div class="final-stat-item">Mouvements vers le <strong>haut</strong>: <span class="final-stat-value" id="upCount">0</span> mouvements</div>
             <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="upSuccessRate">--%</span></div>
-            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="upMinSize">-- px</span></div>
+            <div class="final-stat-value" id="upMinSize">-- px</div>
         </div>
         <div class="final-stat-box">
             <div class="final-stat-item">Mouvements vers le <strong>bas</strong>: <span class="final-stat-value" id="downCount">0</span> mouvements</div>
@@ -293,448 +287,411 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
     <script>
-        // --- VARIABLES GLOBALES (encapsulées dans une IIFE pour éviter les conflits) ---
-        (function() {
-            let model;
-            let video = document.getElementById('video');
-            let letterEl = document.getElementById('letterDisplay');
-            let startOverlay = document.getElementById('startOverlay');
-            let ui = document.getElementById('ui');
-            let startMessage = document.getElementById('startMessage');
-            let letterSizeControl = document.getElementById('letterSizeControl');
-            let keyboard = document.getElementById('keyboard');
-            let letterSizeInputEl = document.getElementById('letterSizeInput');
-            let letterSizeValueEl = document.getElementById('letterSizeValue');
-            let scoreTopPanel = document.getElementById('scoreTopPanel');
+        // --- VARIABLES GLOBALES ---
+        let model;
+        let video = document.getElementById('video');
+        let letterEl = document.getElementById('letterDisplay');
+        let startOverlay = document.getElementById('startOverlay');
+        let ui = document.getElementById('ui');
+        let startMessage = document.getElementById('startMessage');
+        let letterSizeControl = document.getElementById('letterSizeControl');
+        let keyboard = document.getElementById('keyboard');
+        let letterSizeInputEl = document.getElementById('letterSizeInput');
+        let letterSizeValueEl = document.getElementById('letterSizeValue');
+        let scoreTopPanel = document.getElementById('scoreTopPanel');
+        let leftControls = document.getElementById('leftControls');
+        let rightControls = document.getElementById('rightControls');
+        let finalStatsOverlay = document.getElementById('finalStatsOverlay');
 
-            // Statistiques
-            let totalLetters = 0;
-            let correctLetters = 0;
-            let minSuccessfulLetterSize = Infinity;
+        // Statistiques
+        let totalLetters = 0;
+        let correctLetters = 0;
+        let minSuccessfulLetterSize = Infinity;
 
-            // Paramètres de calibration
-            let calibrationFactor = 1.0;
-            let screenDPI = window.devicePixelRatio * 96;
+        // Paramètres de calibration
+        let calibrationFactor = 1.0;
+        let screenDPI = window.devicePixelRatio * 96;
 
-            // État du test
-            let state = 'IDLE';
-            let lastFlashTime = 0;
-            let flashTimeout = null;
-            let currentDisplayedLetter = '';
+        // État du test
+        let state = 'IDLE';
+        let lastFlashTime = 0;
+        let flashTimeout = null;
+        let currentDisplayedLetter = '';
 
-            // Paramètres de mouvement
-            let distance = 60;
-            let rawDistance = 60;
-            let speed = 0;
-            let smoothedSpeed = 0;
-            let lastHeadPos = null;
-            let lastTime = performance.now();
+        // Paramètres de mouvement
+        let distance = 60;
+        let rawDistance = 60;
+        let speed = 0;
+        let smoothedSpeed = 0;
+        let lastHeadPos = null;
+        let lastTime = performance.now();
 
-            // Statistiques par direction
-            let movements = {
+        // Statistiques par direction
+        let movements = {
+            right: { count: 0, correct: 0, minSize: Infinity },
+            left: { count: 0, correct: 0, minSize: Infinity },
+            up: { count: 0, correct: 0, minSize: Infinity },
+            down: { count: 0, correct: 0, minSize: Infinity }
+        };
+
+        // Direction du dernier mouvement détecté
+        let lastMovementDirection = null;
+
+        // Liste des lettres
+        const letters = "D F P V A N L C O E R U S Z H".split(" ");
+
+        // --- INITIALISATION DU CLAVIER ---
+        function initKeyboard() {
+            keyboard.innerHTML = '';
+            const lettersSorted = [...letters].sort();
+
+            // Ajout des lettres
+            lettersSorted.forEach(letter => {
+                const key = document.createElement('button');
+                key.className = 'key';
+                key.textContent = letter;
+                key.onclick = () => validateLetter(letter);
+                keyboard.appendChild(key);
+            });
+        }
+
+        // --- VALIDATION D'UNE LETTRE ---
+        function validateLetter(letter) {
+            if (state !== 'WAITING_VALIDATION') return;
+
+            // Effacer le timeout de disparition automatique
+            if (flashTimeout) {
+                clearTimeout(flashTimeout);
+                flashTimeout = null;
+            }
+
+            const keys = document.querySelectorAll('.key');
+            keys.forEach(k => k.classList.remove('validated', 'invalid'));
+
+            const clickedKey = Array.from(keys).find(k => k.textContent === letter);
+
+            if (clickedKey) {
+                totalLetters++;
+                if (letter === currentDisplayedLetter) {
+                    // Bonne réponse
+                    correctLetters++;
+                    clickedKey.classList.add('validated');
+                    letterEl.style.opacity = '0';
+
+                    // Réduire la taille de la lettre de 5px à chaque bonne réponse
+                    letterSizePx = Math.max(5, letterSizePx - 5);
+
+                    if (letterSizePx < minSuccessfulLetterSize) {
+                        minSuccessfulLetterSize = letterSizePx;
+                    }
+
+                    // Mettre à jour la taille minimale pour la direction du dernier mouvement
+                    if (lastMovementDirection && movements[lastMovementDirection]) {
+                        if (letterSizePx < movements[lastMovementDirection].minSize) {
+                            movements[lastMovementDirection].minSize = letterSizePx;
+                        }
+                    }
+
+                } else {
+                    // Mauvaise réponse
+                    clickedKey.classList.add('invalid');
+                    letterSizePx = Math.min(300, letterSizePx + 5);
+                }
+
+                updateScore();
+                updateLetterDisplay();
+                updateStats();
+
+                state = 'IDLE';
+            }
+        }
+
+        // --- METTRE À JOUR LE SCORE ---
+        function updateScore() {
+            const score = totalLetters > 0 ? Math.round((correctLetters / totalLetters) * 100) : 0;
+            scoreTopPanel.innerHTML = `Score: ${score}% | Min: ${minSuccessfulLetterSize !== Infinity ? minSuccessfulLetterSize + ' px' : '-- px'}`;
+        }
+
+        // --- METTRE À JOUR LES STATISTIQUES FINALES ---
+        function showFinalStats() {
+            const globalSuccessRate = totalLetters > 0 ?
+                `${Math.round((correctLetters / totalLetters) * 100)}%` : '--%';
+
+            document.getElementById('globalSuccessRate').textContent = globalSuccessRate;
+
+            // Droite
+            document.getElementById('rightCount').textContent = movements.right.count;
+            document.getElementById('rightSuccessRate').textContent = movements.right.count > 0 ?
+                `${Math.round((movements.right.correct / movements.right.count) * 100)}%` : '--%';
+            document.getElementById('rightMinSize').textContent = movements.right.minSize !== Infinity ?
+                `${movements.right.minSize} px` : '-- px';
+
+            // Gauche
+            document.getElementById('leftCount').textContent = movements.left.count;
+            document.getElementById('leftSuccessRate').textContent = movements.left.count > 0 ?
+                `${Math.round((movements.left.correct / movements.left.count) * 100)}%` : '--%';
+            document.getElementById('leftMinSize').textContent = movements.left.minSize !== Infinity ?
+                `${movements.left.minSize} px` : '-- px';
+
+            // Haut
+            document.getElementById('upCount').textContent = movements.up.count;
+            document.getElementById('upSuccessRate').textContent = movements.up.count > 0 ?
+                `${Math.round((movements.up.correct / movements.up.count) * 100)}%` : '--%';
+            document.getElementById('upMinSize').textContent = movements.up.minSize !== Infinity ?
+                `${movements.up.minSize} px` : '-- px';
+
+            // Bas
+            document.getElementById('downCount').textContent = movements.down.count;
+            document.getElementById('downSuccessRate').textContent = movements.down.count > 0 ?
+                `${Math.round((movements.down.correct / movements.down.count) * 100)}%` : '--%';
+            document.getElementById('downMinSize').textContent = movements.down.minSize !== Infinity ?
+                `${movements.down.minSize} px` : '-- px';
+
+            finalStatsOverlay.style.display = 'flex';
+        }
+
+        // --- RECOMMENCER LE TEST ---
+        function restartTest() {
+            totalLetters = 0;
+            correctLetters = 0;
+            minSuccessfulLetterSize = Infinity;
+            movements = {
                 right: { count: 0, correct: 0, minSize: Infinity },
                 left: { count: 0, correct: 0, minSize: Infinity },
                 up: { count: 0, correct: 0, minSize: Infinity },
                 down: { count: 0, correct: 0, minSize: Infinity }
             };
+            lastMovementDirection = null;
 
-            // Direction du dernier mouvement détecté
-            let lastMovementDirection = null;
+            updateScore();
+            scoreTopPanel.innerHTML = `Score: --% | Min: -- px`;
+            finalStatsOverlay.style.display = 'none';
+            letterSizePx = 80;
+            updateLetterDisplay();
+            updateStats();
+        }
 
-            // Liste des lettres
-            const letters = "D F P V A N L C O E R U S Z H".split(" ");
+        // --- CALIBRATION ---
+        function toggleCalib() {
+            const panel = document.getElementById('calibPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+        function updateCalib() {
+            calibrationFactor = parseFloat(document.getElementById('calibSlider').value);
+            document.getElementById('calibBar').style.transform = `scaleX(${calibrationFactor})`;
+        }
+        function saveCalib() {
+            localStorage.setItem('avd_blazeface_calib_v3', calibrationFactor);
+            document.getElementById('calibPanel').style.display = 'none';
+            updateStats();
+        }
+        function loadCalib() {
+            const saved = localStorage.getItem('avd_blazeface_calib_v3');
+            if (saved) {
+                calibrationFactor = parseFloat(saved);
+                document.getElementById('calibSlider').value = calibrationFactor;
+                updateCalib();
+            }
+        }
 
-            // --- INITIALISATION DU CLAVIER ---
-            function initKeyboard() {
-                keyboard.innerHTML = '';
-                const lettersSorted = [...letters].sort();
+        // --- GESTION DE LA TAILLE DES LETTRES ---
+        function updateLetterSizeFromInput() {
+            const newSize = parseInt(letterSizeInputEl.value);
+            if (!isNaN(newSize) && newSize >= 5 && newSize <= 300) {
+                letterSizePx = newSize;
+                updateLetterDisplay();
+                updateStats();
+            }
+            letterSizeInputEl.value = letterSizePx;
+        }
 
-                // Ajout des lettres
-                lettersSorted.forEach(letter => {
-                    const key = document.createElement('button');
-                    key.className = 'key';
-                    key.textContent = letter;
-                    key.onclick = () => validateLetter(letter);
-                    keyboard.appendChild(key);
+        function adjustLetterSize(delta) {
+            letterSizePx = Math.max(5, Math.min(300, letterSizePx + delta));
+            letterSizeInputEl.value = letterSizePx;
+            updateLetterDisplay();
+            updateStats();
+        }
+
+        let letterSizePx = 80;
+
+        function updateLetterDisplay() {
+            letterSizeValueEl.innerText = letterSizePx;
+            letterEl.style.fontSize = letterSizePx + 'px';
+        }
+
+        // --- DÉMARRAGE ---
+        async function startApp() {
+            loadCalib();
+            initKeyboard();
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }
                 });
-            }
-
-            // --- VALIDATION D'UNE LETTRE ---
-            function validateLetter(letter) {
-                if (state !== 'WAITING_VALIDATION') return;
-
-                // Effacer le timeout de disparition automatique
-                if (flashTimeout) {
-                    clearTimeout(flashTimeout);
-                    flashTimeout = null;
-                }
-
-                const keys = document.querySelectorAll('.key');
-                keys.forEach(k => k.classList.remove('validated', 'invalid'));
-
-                const clickedKey = Array.from(keys).find(k => k.textContent === letter);
-
-                if (clickedKey) {
-                    totalLetters++;
-                    if (letter === currentDisplayedLetter) {
-                        // Bonne réponse
-                        correctLetters++;
-                        clickedKey.classList.add('validated');
-                        letterEl.style.opacity = '0';
-
-                        // Mettre à jour la taille minimale pour la direction du dernier mouvement
-                        if (lastMovementDirection && movements[lastMovementDirection]) {
-                            if (letterSizePx < movements[lastMovementDirection].minSize) {
-                                movements[lastMovementDirection].minSize = letterSizePx;
-                            }
-                        }
-
-                        // Réduire la taille de la lettre de 5px à chaque bonne réponse
-                        letterSizePx = Math.max(5, letterSizePx - 5);
-
-                        // Mettre à jour les statistiques de mouvement
-                        if (lastMovementDirection && movements[lastMovementDirection]) {
-                            movements[lastMovementDirection].correct++;
-                        }
-
-                    } else {
-                        // Mauvaise réponse
-                        clickedKey.classList.add('invalid');
-                        letterSizePx = Math.min(300, letterSizePx + 10); // Augmenter plus vite pour l'échec
+                video.srcObject = stream;
+                video.onloadedmetadata = async () => {
+                    startOverlay.style.display = 'none';
+                    ui.style.display = 'block';
+                    letterSizeControl.style.display = 'block';
+                    keyboard.style.display = 'flex'; // ← Affichage du clavier après démarrage
+                    leftControls.style.display = 'block';
+                    rightControls.style.display = 'block';
+                    video.play();
+                    document.getElementById('statusInit').innerText = "Chargement IA...";
+                    try {
+                        model = await blazeface.load();
+                        document.getElementById('statusInit').innerText = "IA prête";
+                        startMessage.style.opacity = '1';
+                        setTimeout(() => {
+                            startMessage.style.opacity = '0';
+                        }, 1000);
+                        updateLetterDisplay();
+                        loop();
+                    } catch (err) {
+                        document.getElementById('statusInit').innerText = "Erreur IA: " + err.message;
+                        console.error("Failed to load blazeface model:", err);
                     }
-
-                    updateScore();
-                    updateLetterDisplay();
-                    updateStats();
-
-                    state = 'IDLE';
-                }
-            }
-
-            // --- METTRE À JOUR LE SCORE ---
-            function updateScore() {
-                const score = totalLetters > 0 ? Math.round((correctLetters / totalLetters) * 100) : 0;
-                scoreTopPanel.innerHTML = `Score: ${score}% | Min: ${minSuccessfulLetterSize !== Infinity ? minSuccessfulLetterSize + ' px' : '-- px'}`;
-            }
-
-            // --- METTRE À JOUR LES STATISTIQUES FINALES ---
-            function showFinalStats() {
-                // Taux global de réussite
-                const globalSuccessRate = totalLetters > 0 ?
-                    `${Math.round((correctLetters / totalLetters) * 100)}%` : '--%';
-
-                document.getElementById('globalSuccessRate').textContent = globalSuccessRate;
-
-                // Droite
-                document.getElementById('rightCount').textContent = movements.right.count;
-                document.getElementById('rightSuccessRate').textContent = movements.right.count > 0 ?
-                    `${Math.round((movements.right.correct / movements.right.count) * 100)}%` : '--%';
-                document.getElementById('rightMinSize').textContent = movements.right.minSize !== Infinity ?
-                    `${movements.right.minSize} px` : '-- px';
-
-                // Gauche
-                document.getElementById('leftCount').textContent = movements.left.count;
-                document.getElementById('leftSuccessRate').textContent = movements.left.count > 0 ?
-                    `${Math.round((movements.left.correct / movements.left.count) * 100)}%` : '--%';
-                document.getElementById('leftMinSize').textContent = movements.left.minSize !== Infinity ?
-                    `${movements.left.minSize} px` : '-- px';
-
-                // Haut
-                document.getElementById('upCount').textContent = movements.up.count;
-                document.getElementById('upSuccessRate').textContent = movements.up.count > 0 ?
-                    `${Math.round((movements.up.correct / movements.up.count) * 100)}%` : '--%';
-                document.getElementById('upMinSize').textContent = movements.up.minSize !== Infinity ?
-                    `${movements.up.minSize} px` : '-- px';
-
-                // Bas
-                document.getElementById('downCount').textContent = movements.down.count;
-                document.getElementById('downSuccessRate').textContent = movements.down.count > 0 ?
-                    `${Math.round((movements.down.correct / movements.down.count) * 100)}%` : '--%';
-                document.getElementById('downMinSize').textContent = movements.down.minSize !== Infinity ?
-                    `${movements.down.minSize} px` : '-- px';
-
-                // Afficher l'overlay
-                finalStatsOverlay.style.display = 'flex';
-            }
-
-            // --- RECOMMENCER LE TEST ---
-            function restartTest() {
-                // Réinitialiser toutes les statistiques
-                totalLetters = 0;
-                correctLetters = 0;
-                minSuccessfulLetterSize = Infinity;
-                movements = {
-                    right: { count: 0, correct: 0, minSize: Infinity },
-                    left: { count: 0, correct: 0, minSize: Infinity },
-                    up: { count: 0, correct: 0, minSize: Infinity },
-                    down: { count: 0, correct: 0, minSize: Infinity }
                 };
-                lastMovementDirection = null;
-
-                // Réinitialiser l'affichage
-                updateScore();
-                scoreTopPanel.innerHTML = `Score: --% | Min: -- px`;
-
-                // Cacher l'overlay
-                finalStatsOverlay.style.display = 'none';
-
-                // Réinitialiser la taille des lettres
-                letterSizePx = 80;
-                updateLetterDisplay();
-                updateStats();
+            } catch (err) {
+                document.getElementById('errorMsg').innerText = "Erreur Caméra : " + err.message;
+                console.error("Camera error:", err);
             }
+        }
 
-            // --- CALIBRATION ---
-            function toggleCalib() {
-                const panel = document.getElementById('calibPanel');
-                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-            }
-            function updateCalib() {
-                calibrationFactor = parseFloat(document.getElementById('calibSlider').value);
-                document.getElementById('calibBar').style.transform = `scaleX(${calibrationFactor})`;
-            }
-            function saveCalib() {
-                localStorage.setItem('avd_blazeface_calib_v3', calibrationFactor);
-                document.getElementById('calibPanel').style.display = 'none';
-                updateStats();
-            }
-            function loadCalib() {
-                const saved = localStorage.getItem('avd_blazeface_calib_v3');
-                if (saved) {
-                    calibrationFactor = parseFloat(saved);
-                    document.getElementById('calibSlider').value = calibrationFactor;
-                    updateCalib();
+        // --- BOUCLE PRINCIPALE ---
+        async function loop() {
+            if (!model) return;
+
+            const predictions = await model.estimateFaces(video, false);
+
+            if (predictions.length > 0) {
+                const face = predictions[0];
+                const nose = face.landmarks[2];
+                const leftEye = face.landmarks[0];
+                const rightEye = face.landmarks[1];
+
+                // 1. DISTANCE
+                const distInterYeuxPx = Math.sqrt(
+                    Math.pow(rightEye[0] - leftEye[0], 2) +
+                    Math.pow(rightEye[1] - leftEye[1], 2)
+                );
+                const K_FACTOR = 2800;
+                if (distInterYeuxPx > 5) {
+                    let calculatedDist = (K_FACTOR / distInterYeuxPx) * calibrationFactor;
+                    rawDistance = calculatedDist;
+                    distance = (distance * 0.9) + (rawDistance * 0.1);
+                    distance = Math.max(30, Math.min(120, distance));
                 }
-            }
 
-            // --- GESTION DE LA TAILLE DES LETTRES ---
-            function updateLetterSizeFromInput() {
-                const newSize = parseInt(letterSizeInputEl.value);
-                if (!isNaN(newSize) && newSize >= 5 && newSize <= 300) {
-                    letterSizePx = newSize;
-                    updateLetterDisplay();
-                    updateStats();
+                // 2. VITESSE
+                const now = performance.now();
+                if (lastHeadPos) {
+                    const dt = (now - lastTime);
+                    if (dt > 16) {
+                        const dx = nose[0] - lastHeadPos.x;
+                        const dy = nose[1] - lastHeadPos.y;
+                        const distPx = Math.sqrt(dx*dx + dy*dy);
+                        let rawSpeed = distPx / dt;
+                        smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
+                        speed = smoothedSpeed * 1000;
+                    }
                 }
-                letterSizeInputEl.value = letterSizePx;
-            }
+                lastHeadPos = { x: nose[0], y: nose[1] };
+                lastTime = now;
 
-            function adjustLetterSize(delta) {
-                letterSizePx = Math.max(5, Math.min(300, letterSizePx + delta));
-                letterSizeInputEl.value = letterSizePx;
-                updateLetterDisplay();
+                // 3. DÉTECTION DE LA DIRECTION
+                detectDirection(nose, lastHeadPos);
+
+                handleState(speed, now);
+                updateStats();
+
+            } else {
+                smoothedSpeed = smoothedSpeed * 0.9;
+                speed = smoothedSpeed * 1000;
+                lastHeadPos = null; // Réinitialiser la position quand le visage disparaît
                 updateStats();
             }
+            requestAnimationFrame(loop);
+        }
 
-            let letterSizePx = 80;
+        // --- DÉTECTION DE LA DIRECTION DU MOUVEMENT ---
+        function detectDirection(currentPos, lastPos) {
+            if (!lastPos) return;
 
-            function updateLetterDisplay() {
-                letterSizeValueEl.innerText = letterSizePx;
-                letterEl.style.fontSize = letterSizePx + 'px';
-            }
+            const dx = currentPos.x - lastPos.x;
+            const dy = currentPos.y - lastPos.y;
 
-            // --- DÉTECTION DE LA DIRECTION DU MOUVEMENT ---
-            function detectDirection(currentPos, lastPos) {
-                if (!lastPos) return;
+            // Seuil pour considérer un mouvement significatif
+            const threshold = 10;
 
-                const dx = currentPos.x - lastPos.x;
-                const dy = currentPos.y - lastPos.y;
-
-                // Seuil pour considérer un mouvement significatif
-                const threshold = 10;
-
-                if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        // Mouvement horizontal dominant
-                        if (dx > 0) {
-                            lastMovementDirection = 'right';
-                            updateMovementStats('right', false);
-                        } else {
-                            lastMovementDirection = 'left';
-                            updateMovementStats('left', false);
-                        }
+            if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Mouvement horizontal dominant
+                    if (dx > 0) {
+                        updateMovementStats('right', false);
                     } else {
-                        // Mouvement vertical dominant
-                        if (dy > 0) {
-                            lastMovementDirection = 'down';
-                            updateMovementStats('down', false);
-                        } else {
-                            lastMovementDirection = 'up';
-                            updateMovementStats('up', false);
-                        }
-                    }
-                }
-            }
-
-            // --- METTRE À JOUR LES STATISTIQUES DE MOUVEMENT ---
-            function updateMovementStats(direction, isValidation) {
-                if (isValidation) {
-                    // Si c'est une validation de lettre, on compte comme correct
-                    if (movements[direction]) {
-                        movements[direction].correct++;
+                        updateMovementStats('left', false);
                     }
                 } else {
-                    // Si c'est juste un mouvement détecté
-                    if (movements[direction]) {
-                        movements[direction].count++;
+                    // Mouvement vertical dominant
+                    if (dy > 0) {
+                        updateMovementStats('down', false);
+                    } else {
+                        updateMovementStats('up', false);
                     }
                 }
             }
+        }
 
-            // --- MACHINE D'ÉTAT ---
-            function handleState(currentSpeed, now) {
-                const minSpeedTrigger = 150;
-                const flashDuration = 60; // 60ms comme demandé
-                const cooldownDuration = 1000;
-
-                if (state === 'IDLE') {
-                    if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
-                        state = 'WAITING_VALIDATION';
-                        lastFlashTime = now;
-                        currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-                        letterEl.innerText = currentDisplayedLetter;
-                        letterEl.style.opacity = '1';
-
-                        flashTimeout = setTimeout(() => {
-                            if (state === 'WAITING_VALIDATION') {
-                                letterEl.style.opacity = '0';
-                            }
-                        }, flashDuration);
-                    }
+        // --- METTRE À JOUR LES STATISTIQUES DE MOUVEMENT ---
+        function updateMovementStats(direction, isValidation) {
+            if (isValidation) {
+                if (movements[direction]) {
+                    movements[direction].correct++;
+                }
+            } else {
+                if (movements[direction]) {
+                    movements[direction].count++;
+                    lastMovementDirection = direction;
                 }
             }
+        }
 
-            // --- CALCUL TAILLE OPTIQUE ---
-            function calculateSize(distCm, acuityDecimal) {
-                let heightCm = (distCm * 0.0145) / acuityDecimal;
-                let heightPx = (heightCm / 2.54) * screenDPI;
-                return Math.max(5, Math.round(heightPx));
-            }
+        // --- MACHINE D'ÉTAT ---
+        function handleState(currentSpeed, now) {
+            const minSpeedTrigger = 150;
+            const flashDuration = 60;
+            const cooldownDuration = 1000;
 
-            function updateStats() {
-                document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
-                document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
-                document.getElementById('statusSize').innerText = `Taille: ${letterSizePx} px`;
+            if (state === 'IDLE') {
+                if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
+                    state = 'WAITING_VALIDATION';
+                    lastFlashTime = now;
+                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
+                    letterEl.innerText = currentDisplayedLetter;
+                    letterEl.style.opacity = '1';
 
-                let pct = Math.min(100, speed / 500 * 100); // Max 500 pour 100%
-                document.getElementById('speedBar').style.width = `${pct}%`;
-                const bar = document.getElementById('speedBar');
-                if(speed > 350) bar.style.background = '#f00';
-                else if(speed > 250) bar.style.background = '#ff0';
-                else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
-            }
-
-            // --- DÉMARRAGE ---
-            async function startApp() {
-                loadCalib();
-                initKeyboard();
-                try {
-                    const constraints = {
-                        video: {
-                            facingMode: 'user',
-                            width: { ideal: 640 },
-                            height: { ideal: 480 },
-                            frameRate: { ideal: 30 }
+                    flashTimeout = setTimeout(() => {
+                        if (state === 'WAITING_VALIDATION') {
+                            letterEl.style.opacity = '0';
                         }
-                    };
-                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    video.srcObject = stream;
-                    video.onloadedmetadata = async () => {
-                        startOverlay.style.display = 'none';
-                        ui.style.display = 'block';
-                        letterSizeControl.style.display = 'block';
-                        keyboard.style.display = 'flex';
-                        leftControls.style.display = 'block';
-                        rightControls.style.display = 'block';
-                        video.play();
-                        document.getElementById('statusInit').innerText = "Chargement IA...";
-                        try {
-                            model = await blazeface.load();
-                            document.getElementById('statusInit').innerText = "IA prête";
-                            startMessage.style.opacity = '1';
-
-                            setTimeout(() => {
-                                startMessage.style.opacity = '0';
-                            }, 1000);
-
-                            updateLetterDisplay();
-                            loop();
-                        } catch (err) {
-                            document.getElementById('statusInit').innerText = "Erreur IA: " + err.message;
-                            console.error("Failed to load blazeface model:", err);
-                        }
-                    };
-                } catch (err) {
-                    document.getElementById('errorMsg').innerText = "Erreur Caméra : " + err.message;
-                    console.error("Camera error:", err);
+                    }, flashDuration);
                 }
             }
+        }
 
-            // --- BOUCLE PRINCIPALE ---
-            async function loop() {
-                if (!model) return;
+        // --- CALCUL TAILLE OPTIQUE ---
+        function updateStats() {
+            document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
+            document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
+            document.getElementById('statusSize').innerText = `Taille: ${letterSizePx} px`;
 
-                const predictions = await model.estimateFaces(video, false);
-
-                if (predictions.length > 0) {
-                    const face = predictions[0];
-                    const nose = face.landmarks[2];
-                    const leftEye = face.landmarks[0];
-                    const rightEye = face.landmarks[1];
-
-                    // 1. DISTANCE (avec calibration)
-                    const distInterYeuxPx = Math.sqrt(
-                        Math.pow(rightEye[0] - leftEye[0], 2) +
-                        Math.pow(rightEye[1] - leftEye[1], 2)
-                    );
-                    const K_FACTOR = 2800;
-                    if (distInterYeuxPx > 5) {
-                        let calculatedDist = (K_FACTOR / distInterYeuxPx) * calibrationFactor;
-                        rawDistance = calculatedDist;
-                        distance = (distance * 0.9) + (rawDistance * 0.1);
-                        distance = Math.max(30, Math.min(120, distance));
-                    }
-
-                    // 2. VITESSE
-                    const now = performance.now();
-                    if (lastHeadPos) {
-                        const dt = (now - lastTime);
-                        if (dt > 16) {
-                            const dx = nose[0] - lastHeadPos.x;
-                            const dy = nose[1] - lastHeadPos.y;
-                            const distPx = Math.sqrt(dx*dx + dy*dy);
-                            let rawSpeed = distPx / dt;
-                            smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
-                            speed = smoothedSpeed * 1000;
-                        }
-                    }
-                    lastHeadPos = { x: nose[0], y: nose[1] };
-                    lastTime = now;
-
-                    // 3. DÉTECTION DE LA DIRECTION
-                    detectDirection(nose, lastHeadPos);
-
-                    handleState(speed, now);
-                    updateStats();
-
-                } else {
-                    smoothedSpeed = smoothedSpeed * 0.9;
-                    speed = smoothedSpeed * 1000;
-                    lastHeadPos = null; // Réinitialiser la position quand le visage disparaît
-                    updateStats();
-                }
-                requestAnimationFrame(loop);
-            }
-
-            // Exposer les fonctions globales nécessaires
-            window.startApp = startApp;
-            window.toggleCalib = toggleCalib;
-            window.updateCalib = updateCalib;
-            window.saveCalib = saveCalib;
-            window.adjustLetterSize = adjustLetterSize;
-            window.updateLetterSizeFromInput = updateLetterSizeFromInput;
-            window.showFinalStats = showFinalStats;
-            window.restartTest = restartTest;
-        })();
+            let pct = Math.min(100, (speed / 500) * 100);
+            document.getElementById('speedBar').style.width = `${pct}%`;
+            const bar = document.getElementById('speedBar');
+            if(speed > 350) bar.style.background = '#f00';
+            else if(speed > 250) bar.style.background = '#ff0';
+            else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
+        }
     </script>
 </body>
 </html>
