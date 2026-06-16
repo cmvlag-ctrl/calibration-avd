@@ -80,10 +80,10 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
-        /* Clavier virtuel - MODIFIÉ POUR PLACER LES BOUTONS SUR LA MÊME LIGNE QUE Z */
+        /* Clavier virtuel - POSITIONNÉ EN BAS DE L'ÉCRAN */
         #keyboard {
             position: fixed;
-            bottom: 120px; /* Plus bas pour laisser de la place aux grandes lettres */
+            bottom: 20px; /* Positionné tout en bas */
             left: 50%;
             transform: translateX(-50%);
             z-index: 30;
@@ -132,7 +132,7 @@
         }
         #scoreDisplay {
             position: fixed;
-            bottom: 60px; /* Positionné au-dessus du clavier */
+            bottom: 70px; /* Positionné juste au-dessus du clavier */
             left: 50%;
             transform: translateX(-50%);
             z-index: 30;
@@ -148,16 +148,17 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        /* Boutons Calibrer et FIN réduits et alignés avec le Z */
         .keyboard-controls {
             display: flex;
             justify-content: space-between;
             width: 100%;
             margin-top: 10px;
-            grid-column: 1 / -1; /* Force les boutons à être sur la même ligne */
+            grid-column: 1 / -1;
         }
         .keyboard-controls button {
-            width: 45%;
-            padding: 8px;
+            width: 120px; /* Taille réduite */
+            padding: 6px; /* Padding réduit */
             font-size: 12px;
         }
         .calib-button {
