@@ -279,7 +279,7 @@
         <div class="final-stat-box">
             <div class="final-stat-item">Mouvements vers le <strong>bas</strong>: <span class="final-stat-value" id="downCount">0</span> mouvements</div>
             <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="downSuccessRate">--%</span></div>
-            <div class="final-stat-value" id="downMinSize">-- px</div>
+            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="downMinSize">-- px</span></div>
         </div>
         <button id="restartButton" onclick="restartTest()">Recommencer</button>
     </div>
@@ -376,18 +376,19 @@
                     letterEl.style.opacity = '0';
 
                     // Réduire la taille de la lettre de 5px à chaque bonne réponse
-                    // jusqu'à atteindre un minimum de 5px
                     letterSizePx = Math.max(5, letterSizePx - 5);
 
                     if (letterSizePx < minSuccessfulLetterSize) {
                         minSuccessfulLetterSize = letterSizePx;
                     }
 
-                    // Mettre à jour la taille minimale pour la direction du dernier mouvement
+                    // Mettre à jour les statistiques par direction
                     if (lastMovementDirection && movements[lastMovementDirection]) {
-                        if (letterSizePx < movements[lastMovementDirection].minSize) {
-                            movements[lastMovementDirection].minSize = letterSizePx;
-                        }
+                        movements[lastMovementDirection].correct++;
+                        movements[lastMovementDirection].minSize = Math.min(
+                            movements[lastMovementDirection].minSize,
+                            letterSizePx
+                        );
                     }
 
                 } else {
@@ -525,6 +526,85 @@
             letterEl.style.fontSize = letterSizePx + 'px';
         }
 
+        // --- DÉTECTION DE LA DIRECTION DU MOUVEMENT ---
+        function detectDirection(currentPos, lastPos) {
+            if (!lastPos) return;
+
+            const dx = currentPos.x - lastPos.x;
+            const dy = currentPos.y - lastPos.y;
+
+            // Seuil pour considérer un mouvement significatif
+            const threshold = 10;
+
+            if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Mouvement horizontal dominant
+                    if (dx > 0) {
+                        if (!movements.right) movements.right = { count: 0, correct: 0, minSize: Infinity };
+                        movements.right.count++;
+                        lastMovementDirection = 'right';
+                    } else {
+                        if (!movements.left) movements.left = { count: 0, correct: 0, minSize: Infinity };
+                        movements.left.count++;
+                        lastMovementDirection = 'left';
+                    }
+                } else {
+                    // Mouvement vertical dominant
+                    if (dy > 0) {
+                        if (!movements.down) movements.down = { count: 0, correct: 0, minSize: Infinity };
+                        movements.down.count++;
+                        lastMovementDirection = 'down';
+                    } else {
+                        if (!movements.up) movements.up = { count: 0, correct: 0, minSize: Infinity };
+                        movements.up.count++;
+                        lastMovementDirection = 'up';
+                    }
+                }
+            }
+        }
+
+        // --- MACHINE D'ÉTAT ---
+        function handleState(currentSpeed, now) {
+            const minSpeedTrigger = 150;
+            const flashDuration = 60;
+            const cooldownDuration = 1000;
+
+            if (state === 'IDLE') {
+                if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
+                    state = 'WAITING_VALIDATION';
+                    lastFlashTime = now;
+                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
+                    letterEl.innerText = currentDisplayedLetter;
+                    letterEl.style.opacity = '1';
+
+                    flashTimeout = setTimeout(() => {
+                        if (state === 'WAITING_VALIDATION') {
+                            letterEl.style.opacity = '0';
+                        }
+                    }, flashDuration);
+                }
+            }
+        }
+
+        // --- CALCUL TAILLE OPTIQUE ---
+        function calculateSize(distCm, acuityDecimal) {
+            let heightCm = (distCm * 0.0145) / acuityDecimal;
+            let heightPx = (heightCm / 2.54) * screenDPI;
+            return Math.max(5, Math.round(heightPx));
+        }
+
+        function updateStats() {
+            document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
+            document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
+            document.getElementById('statusSize').innerText = `Taille: ${letterSizePx} px`;
+
+            let pct = Math.min(100, (speed / 250) * 100);
+            document.getElementById('speedBar').style.width = `${pct}%`;
+            const bar = document.getElementById('speedBar');
+            if(speed > 150) bar.style.background = '#f00';
+            else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
+        }
+
         // --- DÉMARRAGE ---
         async function startApp() {
             loadCalib();
@@ -612,93 +692,6 @@
                 updateStats();
             }
             requestAnimationFrame(loop);
-        }
-
-        // --- DÉTECTION DE LA DIRECTION DU MOUVEMENT ---
-        function detectDirection(currentPos, lastPos) {
-            if (!lastPos) return;
-
-            const dx = currentPos.x - lastPos.x;
-            const dy = currentPos.y - lastPos.y;
-
-            // Seuil pour considérer un mouvement significatif
-            const threshold = 10;
-
-            if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    // Mouvement horizontal dominant
-                    if (dx > 0) {
-                        updateMovementStats('right', false);
-                    } else {
-                        updateMovementStats('left', false);
-                    }
-                } else {
-                    // Mouvement vertical dominant
-                    if (dy > 0) {
-                        updateMovementStats('down', false);
-                    } else {
-                        updateMovementStats('up', false);
-                    }
-                }
-            }
-        }
-
-        // --- METTRE À JOUR LES STATISTIQUES DE MOUVEMENT ---
-        function updateMovementStats(direction, isValidation) {
-            if (isValidation) {
-                // Si c'est une validation de lettre, on compte comme correct
-                if (movements[direction]) {
-                    movements[direction].correct++;
-                }
-            } else {
-                // Si c'est juste un mouvement détecté
-                if (movements[direction]) {
-                    movements[direction].count++;
-                    lastMovementDirection = direction;
-                }
-            }
-        }
-
-        // --- MACHINE D'ÉTAT ---
-        function handleState(currentSpeed, now) {
-            const minSpeedTrigger = 150;
-            const flashDuration = 60;
-            const cooldownDuration = 1000;
-
-            if (state === 'IDLE') {
-                if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
-                    state = 'WAITING_VALIDATION';
-                    lastFlashTime = now;
-                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-                    letterEl.innerText = currentDisplayedLetter;
-                    letterEl.style.opacity = '1';
-
-                    flashTimeout = setTimeout(() => {
-                        if (state === 'WAITING_VALIDATION') {
-                            letterEl.style.opacity = '0';
-                        }
-                    }, flashDuration);
-                }
-            }
-        }
-
-        // --- CALCUL TAILLE OPTIQUE ---
-        function calculateSize(distCm, acuityDecimal) {
-            let heightCm = (distCm * 0.0145) / acuityDecimal;
-            let heightPx = (heightCm / 2.54) * screenDPI;
-            return Math.max(5, Math.round(heightPx));
-        }
-
-        function updateStats() {
-            document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
-            document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
-            document.getElementById('statusSize').innerText = `Taille: ${letterSizePx} px`;
-
-            let pct = Math.min(100, (speed / 250) * 100);
-            document.getElementById('speedBar').style.width = `${pct}%`;
-            const bar = document.getElementById('speedBar');
-            if(speed > 150) bar.style.background = '#f00';
-            else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
         }
     </script>
 </body>
