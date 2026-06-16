@@ -3,120 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Test AV - Version Initiale</title>
+    <title>Test AV - Détection Avancée avec Clavier</title>
     <style>
-        body {
-            margin: 0;
-            background: #000;
-            overflow: hidden;
-            font-family: sans-serif;
-            color: white;
-        }
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0.5;
-            z-index: 1;
-            transform: scaleX(-1);
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; opacity: 0.2; z-index: 1; transform: scaleX(-1);
         }
         #letterDisplay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
+            position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 100px;
-            font-weight: bold;
-            color: white;
-            opacity: 0;
-            z-index: 10;
-            pointer-events: none;
+            font-size: 100px; font-weight: bold; color: white;
+            opacity: 0; z-index: 10; pointer-events: none;
             text-shadow: 0 0 10px black;
             max-width: 90vw;
             text-align: center;
         }
         #ui {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 20;
-            background: rgba(0,0,0,0.8);
-            padding: 10px;
-            border-radius: 8px;
+            position: absolute; top: 10px; left: 10px; z-index: 20;
+            background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
             max-width: 300px;
         }
-        .stat {
-            font-size: 12px;
-            margin: 2px 0;
-            color: #0f0;
-            font-family: monospace;
+        .stat { font-size: 12px; margin: 2px 0; color: #0f0; font-family: monospace; }
+        .error { color: #f55; }
+        .speed-gauge {
+            height: 6px; background: #333; margin-top: 5px; border-radius: 3px; overflow: hidden;
         }
-        .error {
-            color: #f55;
+        .speed-bar {
+            height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #ff0, #f00);
+            transition: width 0.1s linear;
         }
         button {
-            background: #4ecdc4;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            width: 100%;
-            margin-top: 5px;
+            background: #4ecdc4; border: none; padding: 10px; border-radius: 5px;
+            cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px;
         }
+        button.secondary { background: #555; color: white; }
         #startOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 100; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center; padding: 20px;
+        }
+        #calibPanel {
+            display: none; margin-top: 10px; padding-top: 10px;
+            border-top: 1px solid #444; text-align: center;
+        }
+        .calib-bar-container {
+            height: 20px; border: 1px dashed #666; margin: 10px auto;
+            display: flex; justify-content: center; align-items: center; width: 12mm;
+        }
+        .calib-bar { height: 100%; background: red; width: 10mm; transform-origin: center; }
+        #letterSizeControl {
+            position: absolute; top: 10px; right: 10px; z-index: 20;
+            background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px;
+            width: 120px;
             text-align: center;
-            padding: 20px;
         }
-        #startMessage {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 48px;
-            font-weight: bold;
+        #letterSizeLabel {
+            font-size: 11px; margin-bottom: 5px;
+        }
+        #letterSizeValue {
+            font-size: 16px; font-weight: bold; margin: 5px 0;
             color: #4ecdc4;
-            opacity: 0;
-            z-index: 20;
-            text-shadow: 0 0 10px #4ecdc4;
-            transition: opacity 0.3s;
         }
-
-        /* CLavier virtuel - VERSION ORIGINALE COMPACTE */
+        .size-control-buttons {
+            display: flex; justify-content: center; gap: 5px;
+        }
+        .size-btn {
+            width: 30px; height: 30px; font-size: 18px; font-weight: bold;
+            background: #555; padding: 0; line-height: 28px;
+        }
+        .size-btn:hover {
+            background: #777;
+        }
+        #letterSizeInput {
+            width: 60px; text-align: center; background: #333; color: white;
+            border: 1px solid #555; border-radius: 4px; padding: 5px;
+            font-family: monospace;
+        }
+        /* Clavier virtuel - POSITIONNÉ EN BAS DE L'ÉCRAN */
         #keyboard {
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 30;
+            background: rgba(0,0,0,0.8);
+            padding: 12px;
+            border-radius: 8px;
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 4px;
+            gap: 6px;
             width: 90%;
-            max-width: 450px;
+            max-width: 550px;
         }
         .key {
-            width: 50px;
-            height: 50px;
+            width: 42px;
+            height: 42px;
             background: #333;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             font-size: 20px;
             font-weight: bold;
             cursor: pointer;
@@ -127,6 +114,7 @@
         }
         .key:hover {
             background: #555;
+            transform: scale(1.1);
         }
         .key.validated {
             background: #28a745;
@@ -134,6 +122,15 @@
         .key.invalid {
             background: #dc3545;
         }
+        #startMessage {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px; font-weight: bold; color: #4ecdc4;
+            opacity: 0; z-index: 20;
+            text-shadow: 0 0 10px #4ecdc4;
+            transition: opacity 0.3s;
+        }
+        /* Score en haut au milieu */
         #scoreTopPanel {
             position: absolute;
             top: 10px;
@@ -147,6 +144,62 @@
             font-size: 14px;
             text-align: center;
             white-space: nowrap;
+        }
+        /* Boutons FIN et Calibrer en position fixe à droite et gauche */
+        #leftControls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 30;
+        }
+        #rightControls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 30;
+        }
+        .control-btn {
+            width: 100px;
+            padding: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+        .calib-btn {
+            background: #555 !important;
+            color: white !important;
+        }
+        .finish-btn {
+            background: #ffc107 !important;
+            color: #000 !important;
+        }
+        .finish-btn:hover {
+            background: #ffd54f !important;
+        }
+        #finalStatsOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 200; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px; text-align: center;
+        }
+        .final-stat-box {
+            background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px;
+            margin: 10px; width: 90%; max-width: 400px;
+        }
+        .final-stat-title {
+            font-size: 18px; margin-bottom: 15px; color: #4ecdc4;
+        }
+        .final-stat-item {
+            font-size: 16px; margin: 8px 0; color: white;
+        }
+        .final-stat-value {
+            font-weight: bold; color: #28a745;
+        }
+        #restartButton {
+            background: #28a745; margin-top: 20px;
         }
     </style>
 </head>
@@ -164,16 +217,71 @@
     <div id="ui" style="display:none;">
         <div class="stat" id="statusInit">Initialisation...</div>
         <div class="stat" id="statusSpeed">Vitesse: 0</div>
-        <div class="stat" id="statusDist">Distance: -- cm</div>
+        <div class="speed-gauge"><div class="speed-bar" id="speedBar"></div></div>
+
+        <div id="scoreTopPanel">Score: --% | Min: -- px</div>
+
+        <div class="stat" id="statusDist" style="margin-top:5px;">Distance: -- cm</div>
         <div class="stat" id="statusSize">Taille: -- px</div>
+
         <hr style="border-color:#333; margin: 5px 0;">
+
+        <div id="calibPanel">
+            <p style="font-size:11px; margin:0; color:#ddd;">Ajustez la barre rouge à <b>1 cm</b> avec une règle.</p>
+            <div class="calib-bar-container">
+                <div class="calib-bar" id="calibBar"></div>
+            </div>
+            <input type="range" id="calibSlider" min="0.5" max="2.0" step="0.05" value="1.0" oninput="updateCalib()" style="width:100%;">
+            <button onclick="saveCalib()" style="background:#28a745; margin-top:5px;">Sauvegarder</button>
+        </div>
     </div>
 
-    <div id="scoreTopPanel">Score: --% | Min: -- px</div>
+    <div id="letterSizeControl" style="display:none;">
+        <div id="letterSizeLabel">Taille lettre (px)</div>
+        <div id="letterSizeValue">80</div>
+        <div class="size-control-buttons">
+            <button class="size-btn secondary" onclick="adjustLetterSize(-5)">-</button>
+            <input type="number" id="letterSizeInput" min="5" max="300" value="80" onchange="updateLetterSizeFromInput()">
+            <button class="size-btn secondary" onclick="adjustLetterSize(5)">+</button>
+        </div>
+    </div>
 
-    <!-- Clavier virtuel - VERSION ORIGINALE COMPACTE -->
-    <div id="keyboard">
+    <div id="keyboard" style="display:none;">
         <!-- Clavier généré par JavaScript -->
+    </div>
+
+    <!-- Boutons FIN et Calibrer en position fixe -->
+    <div id="leftControls" style="display:none;">
+        <button class="control-btn calib-btn" onclick="toggleCalib()">📏 Calibrer</button>
+    </div>
+    <div id="rightControls" style="display:none;">
+        <button class="control-btn finish-btn" onclick="showFinalStats()">FIN</button>
+    </div>
+
+    <div id="finalStatsOverlay">
+        <h2 class="final-stat-title">Statistiques Finales</h2>
+        <div class="final-stat-box">
+            <div class="final-stat-item">Taux global de réussite: <span class="final-stat-value" id="globalSuccessRate">--%</span></div>
+            <div class="final-stat-item">Mouvements vers la <strong>droite</strong>: <span class="final-stat-value" id="rightCount">0</span> mouvements</div>
+            <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="rightSuccessRate">--%</span></div>
+            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="rightMinSize">-- px</span></div>
+        </div>
+        <div class="final-stat-box">
+            <div class="final-stat-item">Mouvements vers la <strong>gauche</strong>: <span class="final-stat-value" id="leftCount">0</span> mouvements</div>
+            <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="leftSuccessRate">--%</span></div>
+            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="leftMinSize">-- px</span></div>
+        </div>
+        <div class="final-stat-box">
+            <div class="final-stat-item">Mouvements vers le <strong>haut</strong>: <span class="final-stat-value" id="upCount">0</span> mouvements</div>
+            <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="upSuccessRate">--%</span></div>
+            <div class="final-stat-item">Plus petite lettre réussie: <span class="final-stat-value" id="upMinSize">-- px</span></div>
+        </div>
+        <div class="final-stat-box">
+            <div class="final-stat-item">Mouvements vers le <strong>bas</strong>: <span class="final-stat-value" id="downCount">0</span> mouvements</div>
+            <div class="final-stat-item">Taux de réussite: <span class="final-stat-value" id="downSuccessRate">--%</span></div>
+            <div class="final-stat-value" id="downMinSize">-- px</div>
+        </div>
+        <button id="restartButton" onclick="restartTest()">Recommencer</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
@@ -186,13 +294,20 @@
         let startOverlay = document.getElementById('startOverlay');
         let ui = document.getElementById('ui');
         let startMessage = document.getElementById('startMessage');
+        let letterSizeControl = document.getElementById('letterSizeControl');
         let keyboard = document.getElementById('keyboard');
+        let letterSizeInputEl = document.getElementById('letterSizeInput');
+        let letterSizeValueEl = document.getElementById('letterSizeValue');
         let scoreTopPanel = document.getElementById('scoreTopPanel');
 
         // Statistiques
         let totalLetters = 0;
         let correctLetters = 0;
         let minSuccessfulLetterSize = Infinity;
+
+        // Paramètres de calibration
+        let calibrationFactor = 1.0;
+        let screenDPI = window.devicePixelRatio * 96;
 
         // État du test
         let state = 'IDLE';
@@ -202,8 +317,22 @@
 
         // Paramètres de mouvement
         let distance = 60;
+        let rawDistance = 60;
         let speed = 0;
-        let lastHeadPos = {x: 0, y: 0};
+        let smoothedSpeed = 0;
+        let lastHeadPos = null;
+        let lastTime = performance.now();
+
+        // Statistiques par direction
+        let movements = {
+            right: { count: 0, correct: 0, minSize: Infinity },
+            left: { count: 0, correct: 0, minSize: Infinity },
+            up: { count: 0, correct: 0, minSize: Infinity },
+            down: { count: 0, correct: 0, minSize: Infinity }
+        };
+
+        // Direction du dernier mouvement détecté
+        let lastMovementDirection = null;
 
         // Liste des lettres
         const letters = "D F P V A N L C O E R U S Z H".split(" ");
@@ -212,148 +341,364 @@
         function initKeyboard() {
             keyboard.innerHTML = '';
             const lettersSorted = [...letters].sort();
+
+            // Ajout des lettres
             lettersSorted.forEach(letter => {
                 const key = document.createElement('button');
                 key.className = 'key';
-                key.innerText = letter;
+                key.textContent = letter;
                 key.onclick = () => validateLetter(letter);
                 keyboard.appendChild(key);
             });
         }
 
-        // --- DÉMARRAGE DE L'APPLI ---
-        async function startApp() {
-            try {
-                document.getElementById('errorMsg').textContent = '';
-                startOverlay.style.opacity = '0';
-                startOverlay.style.pointerEvents = 'none';
+        // --- VALIDATION D'UNE LETTRE ---
+        function validateLetter(letter) {
+            if (state !== 'WAITING_VALIDATION') return;
 
-                // Initialisation du modèle IA
-                document.getElementById('statusInit').textContent = 'Chargement du modèle IA...';
-                model = await blazeface.load();
-                document.getElementById('statusInit').textContent = 'Modèle IA chargé ✓';
+            // Effacer le timeout de disparition automatique
+            if (flashTimeout) {
+                clearTimeout(flashTimeout);
+                flashTimeout = null;
+            }
 
-                // Accès à la caméra
-                document.getElementById('statusInit').textContent = 'Accès à la caméra...';
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-                video.srcObject = stream;
-                await new Promise(resolve => video.onloadedmetadata = resolve);
-                document.getElementById('statusInit').textContent = 'Caméra prête ✓';
+            const keys = document.querySelectorAll('.key');
+            keys.forEach(k => k.classList.remove('validated', 'invalid'));
 
-                // Masquer le message de démarrage
-                startMessage.style.opacity = '1';
-                setTimeout(() => startMessage.style.opacity = '0', 1000);
+            const clickedKey = Array.from(keys).find(k => k.textContent === letter);
 
-                // Afficher l'UI
-                ui.style.display = 'block';
+            if (clickedKey) {
+                totalLetters++;
+                if (letter === currentDisplayedLetter) {
+                    // Bonne réponse
+                    correctLetters++;
+                    clickedKey.classList.add('validated');
+                    letterEl.style.opacity = '0';
 
-                // Initialiser le clavier
-                initKeyboard();
+                    // Réduire la taille de la lettre de 5px à chaque bonne réponse
+                    // jusqu'à atteindre un minimum de 5px
+                    letterSizePx = Math.max(5, letterSizePx - 5);
 
-                // Lancer la détection de mouvement
-                state = 'WAITING_MOVEMENT';
-                detectMovement();
+                    if (letterSizePx < minSuccessfulLetterSize) {
+                        minSuccessfulLetterSize = letterSizePx;
+                    }
 
-            } catch(err) {
-                console.error(err);
-                document.getElementById('errorMsg').textContent = 'Erreur: ' + err.message;
-                startOverlay.style.opacity = '1';
-                startOverlay.style.pointerEvents = 'auto';
+                    // Mettre à jour la taille minimale pour la direction du dernier mouvement
+                    if (lastMovementDirection && movements[lastMovementDirection]) {
+                        if (letterSizePx < movements[lastMovementDirection].minSize) {
+                            movements[lastMovementDirection].minSize = letterSizePx;
+                        }
+                    }
+
+                } else {
+                    // Mauvaise réponse
+                    clickedKey.classList.add('invalid');
+                    letterSizePx = Math.min(300, letterSizePx + 5);
+                }
+
+                updateScore();
+                updateLetterDisplay();
+                updateStats();
+
+                state = 'IDLE';
             }
         }
 
-        // --- DÉTECTION DE MOUVEMENT ---
-        async function detectMovement() {
-            if(state !== 'WAITING_MOVEMENT') return;
+        // --- METTRE À JOUR LE SCORE ---
+        function updateScore() {
+            const score = totalLetters > 0 ? Math.round((correctLetters / totalLetters) * 100) : 0;
+            scoreTopPanel.innerHTML = `Score: ${score}% | Min: ${minSuccessfulLetterSize !== Infinity ? minSuccessfulLetterSize + ' px' : '-- px'}`;
+        }
 
+        // --- METTRE À JOUR LES STATISTIQUES FINALES ---
+        function showFinalStats() {
+            // Taux global de réussite
+            const globalSuccessRate = totalLetters > 0 ?
+                `${Math.round((correctLetters / totalLetters) * 100)}%` : '--%';
+
+            document.getElementById('globalSuccessRate').textContent = globalSuccessRate;
+
+            // Droite
+            document.getElementById('rightCount').textContent = movements.right.count;
+            document.getElementById('rightSuccessRate').textContent = movements.right.count > 0 ?
+                `${Math.round((movements.right.correct / movements.right.count) * 100)}%` : '--%';
+            document.getElementById('rightMinSize').textContent = movements.right.minSize !== Infinity ?
+                `${movements.right.minSize} px` : '-- px';
+
+            // Gauche
+            document.getElementById('leftCount').textContent = movements.left.count;
+            document.getElementById('leftSuccessRate').textContent = movements.left.count > 0 ?
+                `${Math.round((movements.left.correct / movements.left.count) * 100)}%` : '--%';
+            document.getElementById('leftMinSize').textContent = movements.left.minSize !== Infinity ?
+                `${movements.left.minSize} px` : '-- px';
+
+            // Haut
+            document.getElementById('upCount').textContent = movements.up.count;
+            document.getElementById('upSuccessRate').textContent = movements.up.count > 0 ?
+                `${Math.round((movements.up.correct / movements.up.count) * 100)}%` : '--%';
+            document.getElementById('upMinSize').textContent = movements.up.minSize !== Infinity ?
+                `${movements.up.minSize} px` : '-- px';
+
+            // Bas
+            document.getElementById('downCount').textContent = movements.down.count;
+            document.getElementById('downSuccessRate').textContent = movements.down.count > 0 ?
+                `${Math.round((movements.down.correct / movements.down.count) * 100)}%` : '--%';
+            document.getElementById('downMinSize').textContent = movements.down.minSize !== Infinity ?
+                `${movements.down.minSize} px` : '-- px';
+
+            // Afficher l'overlay
+            finalStatsOverlay.style.display = 'flex';
+        }
+
+        // --- RECOMMENCER LE TEST ---
+        function restartTest() {
+            // Réinitialiser toutes les statistiques
+            totalLetters = 0;
+            correctLetters = 0;
+            minSuccessfulLetterSize = Infinity;
+            movements = {
+                right: { count: 0, correct: 0, minSize: Infinity },
+                left: { count: 0, correct: 0, minSize: Infinity },
+                up: { count: 0, correct: 0, minSize: Infinity },
+                down: { count: 0, correct: 0, minSize: Infinity }
+            };
+            lastMovementDirection = null;
+
+            // Réinitialiser l'affichage
+            updateScore();
+            scoreTopPanel.innerHTML = `Score: --% | Min: -- px`;
+
+            // Cacher l'overlay
+            finalStatsOverlay.style.display = 'none';
+
+            // Réinitialiser la taille des lettres
+            letterSizePx = 80;
+            updateLetterDisplay();
+            updateStats();
+        }
+
+        // --- CALIBRATION ---
+        function toggleCalib() {
+            const panel = document.getElementById('calibPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+        function updateCalib() {
+            calibrationFactor = parseFloat(document.getElementById('calibSlider').value);
+            document.getElementById('calibBar').style.transform = `scaleX(${calibrationFactor})`;
+        }
+        function saveCalib() {
+            localStorage.setItem('avd_blazeface_calib_v3', calibrationFactor);
+            document.getElementById('calibPanel').style.display = 'none';
+            updateStats();
+        }
+        function loadCalib() {
+            const saved = localStorage.getItem('avd_blazeface_calib_v3');
+            if (saved) {
+                calibrationFactor = parseFloat(saved);
+                document.getElementById('calibSlider').value = calibrationFactor;
+                updateCalib();
+            }
+        }
+
+        // --- GESTION DE LA TAILLE DES LETTRES ---
+        function updateLetterSizeFromInput() {
+            const newSize = parseInt(letterSizeInputEl.value);
+            if (!isNaN(newSize) && newSize >= 5 && newSize <= 300) {
+                letterSizePx = newSize;
+                updateLetterDisplay();
+                updateStats();
+            }
+            letterSizeInputEl.value = letterSizePx;
+        }
+
+        function adjustLetterSize(delta) {
+            letterSizePx = Math.max(5, Math.min(300, letterSizePx + delta));
+            letterSizeInputEl.value = letterSizePx;
+            updateLetterDisplay();
+            updateStats();
+        }
+
+        let letterSizePx = 80;
+
+        function updateLetterDisplay() {
+            letterSizeValueEl.innerText = letterSizePx;
+            letterEl.style.fontSize = letterSizePx + 'px';
+        }
+
+        // --- DÉMARRAGE ---
+        async function startApp() {
+            loadCalib();
+            initKeyboard();
             try {
-                const predictions = await model.estimateFaces(video, false);
-                if(predictions.length > 0) {
-                    const pred = predictions[0];
-                    const box = pred.box;
-                    const newHeadPos = {x: box[0] + box[2]/2, y: box[1] + box[3]/2};
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = async () => {
+                    startOverlay.style.display = 'none';
+                    ui.style.display = 'block';
+                    letterSizeControl.style.display = 'block';
+                    keyboard.style.display = 'flex';
+                    leftControls.style.display = 'block';
+                    rightControls.style.display = 'block';
+                    video.play();
+                    document.getElementById('statusInit').innerText = "Chargement IA...";
+                    model = await blazeface.load();
+                    document.getElementById('statusInit').innerText = "IA prête";
+                    startMessage.style.opacity = '1';
 
-                    if(lastHeadPos.x !== 0 && lastHeadPos.y !== 0) {
-                        const dx = newHeadPos.x - lastHeadPos.x;
-                        const dy = newHeadPos.y - lastHeadPos.y;
+                    setTimeout(() => {
+                        startMessage.style.opacity = '0';
+                    }, 1000);
 
-                        // Calcul de la distance en pixels
-                        const pixelDistance = Math.sqrt(dx*dx + dy*dy);
-                        distance = pixelDistance;
+                    updateLetterDisplay();
+                    loop();
+                };
+            } catch (err) {
+                document.getElementById('errorMsg').innerText = "Erreur Caméra : " + err.message;
+            }
+        }
 
-                        // Calcul de la vitesse
-                        speed = distance * 100; // Conversion en vitesse
+        // --- BOUCLE PRINCIPALE ---
+        async function loop() {
+            if (!model) return;
 
-                        // Affichage des stats
-                        document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
-                        document.getElementById('statusDist').innerText = `Distance: ~${Math.round(distance)} px`;
+            const predictions = await model.estimateFaces(video, false);
+
+            if (predictions.length > 0) {
+                const face = predictions[0];
+                const nose = face.landmarks[2];
+                const leftEye = face.landmarks[0];
+                const rightEye = face.landmarks[1];
+
+                // 1. DISTANCE
+                const distInterYeuxPx = Math.sqrt(
+                    Math.pow(rightEye[0] - leftEye[0], 2) +
+                    Math.pow(rightEye[1] - leftEye[1], 2)
+                );
+                const K_FACTOR = 2800;
+                if (distInterYeuxPx > 5) {
+                    let calculatedDist = K_FACTOR / distInterYeuxPx;
+                    rawDistance = calculatedDist;
+                    distance = (distance * 0.9) + (rawDistance * 0.1);
+                    distance = Math.max(30, Math.min(120, distance));
+                }
+
+                // 2. VITESSE
+                const now = performance.now();
+                if (lastHeadPos) {
+                    const dt = (now - lastTime);
+                    if (dt > 16) {
+                        const dx = nose[0] - lastHeadPos.x;
+                        const dy = nose[1] - lastHeadPos.y;
+                        const distPx = Math.sqrt(dx*dx + dy*dy);
+                        let rawSpeed = distPx / dt;
+                        smoothedSpeed = (smoothedSpeed * 0.7) + (rawSpeed * 0.3);
+                        speed = smoothedSpeed * 1000;
                     }
+                }
+                lastHeadPos = { x: nose[0], y: nose[1] };
+                lastTime = now;
 
-                    lastHeadPos = newHeadPos;
+                // 3. DÉTECTION DE LA DIRECTION
+                detectDirection(nose, lastHeadPos);
 
-                    // Si mouvement détecté, afficher une lettre (60ms comme demandé)
-                    if(speed > 200 && state === 'WAITING_MOVEMENT') {
-                        state = 'WAITING_VALIDATION';
-                        showLetter();
+                handleState(speed, now);
+                updateStats();
+
+            } else {
+                smoothedSpeed = smoothedSpeed * 0.9;
+                speed = smoothedSpeed * 1000;
+                updateStats();
+            }
+            requestAnimationFrame(loop);
+        }
+
+        // --- DÉTECTION DE LA DIRECTION DU MOUVEMENT ---
+        function detectDirection(currentPos, lastPos) {
+            if (!lastPos) return;
+
+            const dx = currentPos.x - lastPos.x;
+            const dy = currentPos.y - lastPos.y;
+
+            // Seuil pour considérer un mouvement significatif
+            const threshold = 10;
+
+            if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Mouvement horizontal dominant
+                    if (dx > 0) {
+                        updateMovementStats('right', false);
+                    } else {
+                        updateMovementStats('left', false);
                     }
                 } else {
-                    // Visage non détecté
-                    lastHeadPos = {x: 0, y: 0};
-                    if(state === 'WAITING_VALIDATION') {
-                        state = 'WAITING_MOVEMENT';
+                    // Mouvement vertical dominant
+                    if (dy > 0) {
+                        updateMovementStats('down', false);
+                    } else {
+                        updateMovementStats('up', false);
                     }
                 }
-            } catch(err) {
-                console.error('Erreur détection:', err);
             }
-
-            requestAnimationFrame(detectMovement);
         }
 
-        // --- AFFICHAGE D'UNE LETTRE (60ms comme demandé) ---
-        function showLetter() {
-            if(state !== 'WAITING_VALIDATION') return;
-
-            const now = Date.now();
-            if(now - lastFlashTime < 60) return;
-
-            totalLetters++;
-            lastFlashTime = now;
-            currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
-            letterEl.innerText = currentDisplayedLetter;
-            letterEl.style.opacity = '1';
-
-            // Taille de la lettre basée sur la vitesse
-            const letterSize = Math.max(20, 200 - Math.min(150, speed / 2));
-            letterEl.style.fontSize = `${letterSize}px`;
-
-            clearTimeout(flashTimeout);
-            flashTimeout = setTimeout(() => {
-                if(state === 'WAITING_VALIDATION') {
-                    letterEl.style.opacity = '0';
-                    state = 'WAITING_MOVEMENT';
+        // --- METTRE À JOUR LES STATISTIQUES DE MOUVEMENT ---
+        function updateMovementStats(direction, isValidation) {
+            if (isValidation) {
+                // Si c'est une validation de lettre, on compte comme correct
+                if (movements[direction]) {
+                    movements[direction].correct++;
                 }
-            }, 60);
+            } else {
+                // Si c'est juste un mouvement détecté
+                if (movements[direction]) {
+                    movements[direction].count++;
+                    lastMovementDirection = direction;
+                }
+            }
         }
 
-        // --- VALIDATION D'UNE LETTRE ---
-        function validateLetter(clickedLetter) {
-            if(state !== 'WAITING_VALIDATION') return;
+        // --- MACHINE D'ÉTAT ---
+        function handleState(currentSpeed, now) {
+            const minSpeedTrigger = 150;
+            const flashDuration = 60;
+            const cooldownDuration = 1000;
 
-            clearTimeout(flashTimeout);
-            letterEl.style.opacity = '0';
+            if (state === 'IDLE') {
+                if (currentSpeed > minSpeedTrigger && (now - lastFlashTime > cooldownDuration)) {
+                    state = 'WAITING_VALIDATION';
+                    lastFlashTime = now;
+                    currentDisplayedLetter = letters[Math.floor(Math.random() * letters.length)];
+                    letterEl.innerText = currentDisplayedLetter;
+                    letterEl.style.opacity = '1';
 
-            const isCorrect = clickedLetter === currentDisplayedLetter;
-            if(isCorrect) {
-                correctLetters++;
-                minSuccessfulLetterSize = Math.min(minSuccessfulLetterSize, parseFloat(letterEl.style.fontSize));
+                    flashTimeout = setTimeout(() => {
+                        if (state === 'WAITING_VALIDATION') {
+                            letterEl.style.opacity = '0';
+                        }
+                    }, flashDuration);
+                }
             }
+        }
 
-            // Mise à jour de l'affichage
-            const successRate = totalLetters > 0 ? Math.round((correctLetters / totalLetters) * 100) : 0;
-            scoreTopPanel.innerHTML = `Score: ${successRate}% | Min: ${minSuccessfulLetterSize !== Infinity ? minSuccessfulLetterSize : '--'} px`;
+        // --- CALCUL TAILLE OPTIQUE ---
+        function calculateSize(distCm, acuityDecimal) {
+            let heightCm = (distCm * 0.0145) / acuityDecimal;
+            let heightPx = (heightCm / 2.54) * screenDPI;
+            return Math.max(5, Math.round(heightPx));
+        }
 
-            state = 'WAITING_MOVEMENT';
+        function updateStats() {
+            document.getElementById('statusSpeed').innerText = `Vitesse: ${Math.round(speed)}`;
+            document.getElementById('statusDist').innerText = `Dist: ~${Math.round(distance)} cm`;
+            document.getElementById('statusSize').innerText = `Taille: ${letterSizePx} px`;
+
+            let pct = Math.min(100, (speed / 250) * 100);
+            document.getElementById('speedBar').style.width = `${pct}%`;
+            const bar = document.getElementById('speedBar');
+            if(speed > 150) bar.style.background = '#f00';
+            else bar.style.background = 'linear-gradient(90deg, #0f0, #ff0, #f00)';
         }
     </script>
 </body>
