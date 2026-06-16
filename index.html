@@ -130,23 +130,20 @@
             text-shadow: 0 0 10px #4ecdc4;
             transition: opacity 0.3s;
         }
-        #scoreDisplay {
-            position: fixed;
-            bottom: 120px; /* Positionné plus haut pour libérer le Z */
+        /* Score en haut au milieu */
+        #scoreTopPanel {
+            position: absolute;
+            top: 10px;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 30;
+            z-index: 25;
             background: rgba(0,0,0,0.8);
-            padding: 10px 15px;
+            padding: 8px 15px;
             border-radius: 8px;
             font-family: monospace;
             font-size: 14px;
             text-align: center;
-            width: 90%;
-            max-width: 550px;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
         /* Boutons FIN et Calibrer en position fixe à droite et gauche */
         #leftControls {
@@ -222,6 +219,8 @@
         <div class="stat" id="statusSpeed">Vitesse: 0</div>
         <div class="speed-gauge"><div class="speed-bar" id="speedBar"></div></div>
 
+        <div id="scoreTopPanel">Score: --% | Min: -- px</div>
+
         <div class="stat" id="statusDist" style="margin-top:5px;">Distance: -- cm</div>
         <div class="stat" id="statusSize">Taille: -- px</div>
 
@@ -250,8 +249,6 @@
     <div id="keyboard" style="display:none;">
         <!-- Clavier généré par JavaScript -->
     </div>
-
-    <div id="scoreDisplay">Score: --% | Min: -- px</div>
 
     <!-- Boutons FIN et Calibrer en position fixe -->
     <div id="leftControls" style="display:none;">
@@ -299,11 +296,9 @@
         let startMessage = document.getElementById('startMessage');
         let letterSizeControl = document.getElementById('letterSizeControl');
         let keyboard = document.getElementById('keyboard');
-        let scoreDisplay = document.getElementById('scoreDisplay');
-        let leftControls = document.getElementById('leftControls');
-        let rightControls = document.getElementById('rightControls');
         let letterSizeInputEl = document.getElementById('letterSizeInput');
         let letterSizeValueEl = document.getElementById('letterSizeValue');
+        let scoreTopPanel = document.getElementById('scoreTopPanel');
 
         // Statistiques
         let totalLetters = 0;
@@ -409,7 +404,7 @@
         // --- METTRE À JOUR LE SCORE ---
         function updateScore() {
             const score = totalLetters > 0 ? Math.round((correctLetters / totalLetters) * 100) : 0;
-            scoreDisplay.innerHTML = `Score: ${score}% | Min: ${minSuccessfulLetterSize !== Infinity ? minSuccessfulLetterSize + ' px' : '-- px'}`;
+            scoreTopPanel.innerHTML = `Score: ${score}% | Min: ${minSuccessfulLetterSize !== Infinity ? minSuccessfulLetterSize + ' px' : '-- px'}`;
         }
 
         // --- METTRE À JOUR LES STATISTIQUES FINALES ---
@@ -468,7 +463,7 @@
 
             // Réinitialiser l'affichage
             updateScore();
-            scoreDisplay.innerHTML = `Score: --% | Min: -- px`;
+            scoreTopPanel.innerHTML = `Score: --% | Min: -- px`;
 
             // Cacher l'overlay
             finalStatsOverlay.style.display = 'none';
