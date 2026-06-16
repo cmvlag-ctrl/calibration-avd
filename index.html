@@ -16,7 +16,8 @@
             font-size: 100px; font-weight: bold; color: white;
             opacity: 0; z-index: 10; pointer-events: none;
             text-shadow: 0 0 10px black;
-            max-width: 90vw; /* Permet l'affichage de lettres jusqu'à 300px */
+            max-width: 90vw;
+            text-align: center;
         }
         #ui {
             position: absolute; top: 10px; left: 10px; z-index: 20;
@@ -79,17 +80,36 @@
             border: 1px solid #555; border-radius: 4px; padding: 5px;
             font-family: monospace;
         }
-        /* Clavier virtuel */
+        /* Clavier virtuel - MODIFIÉ POUR PLACER LES BOUTONS SUR LA MÊME LIGNE QUE Z */
         #keyboard {
-            position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
-            z-index: 30; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px;
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
-            width: 90%; max-width: 550px;
+            position: fixed;
+            bottom: 120px; /* Plus bas pour laisser de la place aux grandes lettres */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            background: rgba(0,0,0,0.8);
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            width: 90%;
+            max-width: 550px;
         }
         .key {
-            width: 42px; height: 42px; background: #333; color: white;
-            border: none; border-radius: 6px; font-size: 20px; font-weight: bold;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            width: 42px;
+            height: 42px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: all 0.2s;
         }
         .key:hover {
@@ -102,7 +122,6 @@
         .key.invalid {
             background: #dc3545;
         }
-        /* Message "Début" */
         #startMessage {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
@@ -111,23 +130,35 @@
             text-shadow: 0 0 10px #4ecdc4;
             transition: opacity 0.3s;
         }
-        /* Score */
         #scoreDisplay {
-            position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
-            z-index: 30; background: rgba(0,0,0,0.8); padding: 10px 15px;
-            border-radius: 8px; font-family: monospace; font-size: 14px;
-            text-align: center; width: 90%; max-width: 550px;
+            position: fixed;
+            bottom: 60px; /* Positionné au-dessus du clavier */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            text-align: center;
+            width: 90%;
+            max-width: 550px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        /* Boutons du clavier */
         .keyboard-controls {
-            display: flex; justify-content: space-between; width: 100%;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
             margin-top: 10px;
+            grid-column: 1 / -1; /* Force les boutons à être sur la même ligne */
         }
         .keyboard-controls button {
-            width: 45%; padding: 8px; font-size: 12px;
+            width: 45%;
+            padding: 8px;
+            font-size: 12px;
         }
         .calib-button {
             background: #555 !important;
@@ -139,7 +170,6 @@
         .finish-button:hover {
             background: #ffd54f !important;
         }
-        /* Overlay de fin */
         #finalStatsOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); z-index: 200; display: none;
@@ -195,7 +225,6 @@
         </div>
     </div>
 
-    <!-- Contrôle pour la taille des lettres -->
     <div id="letterSizeControl" style="display:none;">
         <div id="letterSizeLabel">Taille lettre (px)</div>
         <div id="letterSizeValue">80</div>
@@ -206,16 +235,12 @@
         </div>
     </div>
 
-    <!-- Clavier virtuel -->
     <div id="keyboard" style="display:none;">
-        <!-- Les lettres du clavier -->
-        <!-- Les boutons FIN et Calibrer seront ajoutés par JavaScript -->
+        <!-- Clavier généré par JavaScript -->
     </div>
 
-    <!-- Score -->
     <div id="scoreDisplay">Score: --% | Min: -- px</div>
 
-    <!-- Message d'attente -->
     <div id="waitingMessage" style="display:none;">⏳ Validez la lettre affichée pour continuer</div>
     <div id="finalStatsOverlay">
         <h2 class="final-stat-title">Statistiques Finales</h2>
@@ -312,7 +337,7 @@
                 keyboard.appendChild(key);
             });
 
-            // Ajout des boutons FIN et Calibrer
+            // Ajout des boutons FIN et Calibrer sur la même ligne que Z
             const controlsDiv = document.createElement('div');
             controlsDiv.className = 'keyboard-controls';
 
